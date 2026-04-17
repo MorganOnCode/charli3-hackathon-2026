@@ -4,4 +4,4 @@ Price-conditional settlement on Cardano, powered by Charli3's ODV pull oracle. A
 
 The demo is three moments: deposit, price cross, release. Judges see one transaction hash carrying the oracle proof and the payment together.
 
-**Four judging axes.** Technical: the validator decodes Charli3's PriceData CBOR from the reference input and gates every payout on it. Innovation: an agent that settles, not just trades, is a primitive Cardano did not have yesterday. Impact: remittance, invoice-at-spot, liquidation, and DAO rebalancing all sit on this rail. Business: any team shipping a conditional payout can fork our MIT-licensed validator and client library and ship on Preprod the same day.
+**Four judging axes.** Technical: the validator decodes Charli3's PriceData CBOR from the reference input and gates every payout on it. Innovation: an agent that settles, not just trades, is a primitive Cardano did not have yesterday. Impact: remittance, invoice-at-spot, liquidation, and DAO rebalancing all sit on this rail. Business: any team shipping a conditional payout can fork our MIT-licensed validator and the ODV client example and be running on Preprod the same day.
