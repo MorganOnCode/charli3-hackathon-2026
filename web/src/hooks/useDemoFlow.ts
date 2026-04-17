@@ -9,15 +9,19 @@
  */
 import { useCallback, useState } from 'react'
 import { mockTxHash } from '../lib/explorer'
+import { buildEscrowDatumFromDraft } from '../lib/escrowDatum'
 import type { Settlement, SettlementDraft, TxActivity } from '../state/settlement'
 
 interface Deps {
   refreshWallet: () => Promise<void> | void
+  /** Connected wallet's change address; used as the EscrowDatum.sender field. */
+  senderAddress: string | null
 }
 
-export function useDemoFlow({ refreshWallet }: Deps) {
+export function useDemoFlow({ refreshWallet, senderAddress }: Deps) {
   const [settlement, setSettlement] = useState<Settlement | null>(null)
   const [activity, setActivity] = useState<TxActivity[]>([])
+  const [datumError, setDatumError] = useState<string | null>(null)
 
   const pushTx = useCallback((kind: TxActivity['kind'], label: string, hash: string) => {
     const tx: TxActivity = {
@@ -38,6 +42,22 @@ export function useDemoFlow({ refreshWallet }: Deps) {
     (draft: SettlementDraft) => {
       const now = Date.now()
       const lockTxHash = mockTxHash('lock')
+
+      let datumCborHex: string | undefined
+      let datumFields: Record<string, string> | undefined
+      if (senderAddress) {
+        try {
+          const encoded = buildEscrowDatumFromDraft(draft, senderAddress)
+          datumCborHex = encoded.cborHex
+          datumFields = encoded.fields
+          setDatumError(null)
+        } catch (err) {
+          setDatumError(err instanceof Error ? err.message : 'datum encoding failed')
+        }
+      } else {
+        setDatumError('no wallet change address; datum not encoded')
+      }
+
       const next: Settlement = {
         id: Math.random().toString(36).slice(2, 8),
         beneficiary: draft.beneficiary.trim(),
@@ -47,6 +67,8 @@ export function useDemoFlow({ refreshWallet }: Deps) {
         expiresAt: draft.expiresAt,
         status: 'armed',
         lockTxHash,
+        datumCborHex,
+        datumFields,
         createdAt: now,
         updatedAt: now,
       }
@@ -54,7 +76,7 @@ export function useDemoFlow({ refreshWallet }: Deps) {
       pushTx('lock', 'Lock tx submitted', lockTxHash)
       void refreshWallet()
     },
-    [pushTx, refreshWallet],
+    [pushTx, refreshWallet, senderAddress],
   )
 
   const requestOracle = useCallback(() => {
@@ -83,6 +105,7 @@ export function useDemoFlow({ refreshWallet }: Deps) {
   return {
     settlement,
     activity,
+    datumError,
     createSettlement,
     requestOracle,
     release,

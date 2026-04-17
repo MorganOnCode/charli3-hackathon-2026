@@ -14,7 +14,7 @@ function App() {
   const wallet = useWallet()
   const price = usePrice(5000)
   const isConnected = wallet.status === 'connected'
-  const demo = useDemoFlow({ refreshWallet: wallet.reload })
+  const demo = useDemoFlow({ refreshWallet: wallet.reload, senderAddress: wallet.changeAddress })
 
   return (
     <div className="min-h-screen w-full">

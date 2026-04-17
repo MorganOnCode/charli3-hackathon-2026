@@ -61,6 +61,10 @@ export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, o
         <TxLine label="Release tx" hash={settlement.releaseTxHash} emphasise={settlement.status === 'settled'} />
       </div>
 
+      {settlement.datumCborHex && settlement.datumFields && (
+        <DatumPreview cborHex={settlement.datumCborHex} fields={settlement.datumFields} />
+      )}
+
       <footer className="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-edge">
         <ConditionReadout settlement={settlement} currentPrice={currentPrice} crossed={crossed} />
         <div className="flex gap-2">
@@ -223,4 +227,42 @@ function hasCrossedThreshold(settlement: Settlement, price: number | null): bool
   const trigger = Number(settlement.triggerPrice)
   if (Number.isNaN(trigger)) return false
   return settlement.direction === 'above' ? price >= trigger : price <= trigger
+}
+
+function DatumPreview({ cborHex, fields }: { cborHex: string; fields: Record<string, string> }) {
+  const onCopy = () => {
+    if (navigator.clipboard) void navigator.clipboard.writeText(cborHex)
+  }
+  return (
+    <details className="bg-ink border border-edge rounded p-3 group" open>
+      <summary className="flex items-center justify-between cursor-pointer text-xs uppercase tracking-wider text-muted">
+        <span>EscrowDatum (Plutus Data CBOR)</span>
+        <span className="text-[10px] font-mono text-muted">{cborHex.length / 2} bytes</span>
+      </summary>
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-xs font-mono">
+        {Object.entries(fields).map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-3">
+            <span className="text-muted">{k}</span>
+            <span className="text-slate-200 break-all text-right">{v}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-start gap-2">
+        <pre className="flex-1 bg-panel border border-edge rounded p-2 text-[11px] font-mono text-slate-200 break-all whitespace-pre-wrap">
+{cborHex}
+        </pre>
+        <button
+          onClick={onCopy}
+          className="text-[11px] px-2 py-1 rounded border border-edge text-muted hover:text-accent hover:border-accent/40"
+          title="Copy CBOR hex"
+        >
+          copy
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] text-muted">
+        Encoded against `escrow.escrow.spend` schema in `contracts/validators/escrow.ak`. Saturday this
+        attaches to the lock UTxO via the CIP-30 tx builder.
+      </p>
+    </details>
+  )
 }

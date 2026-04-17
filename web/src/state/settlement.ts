@@ -30,6 +30,10 @@ export interface Settlement {
   lockTxHash?: string
   odvTxHash?: string
   releaseTxHash?: string
+  /** Plutus Data CBOR hex of the EscrowDatum that would attach to the lock UTxO. */
+  datumCborHex?: string
+  /** Mirror of the encoded fields, ready to render verbatim. */
+  datumFields?: Record<string, string>
   createdAt: number
   updatedAt: number
 }
