@@ -10,6 +10,7 @@
 import { useCallback, useState } from 'react'
 import { mockTxHash } from '../lib/explorer'
 import { buildEscrowDatumFromDraft } from '../lib/escrowDatum'
+import { ORACLE_FEED_LIVE, submitOdvRequest } from '../lib/oracleService'
 import type { Settlement, SettlementDraft, TxActivity } from '../state/settlement'
 
 interface Deps {
@@ -22,6 +23,8 @@ export function useDemoFlow({ refreshWallet, senderAddress }: Deps) {
   const [settlement, setSettlement] = useState<Settlement | null>(null)
   const [activity, setActivity] = useState<TxActivity[]>([])
   const [datumError, setDatumError] = useState<string | null>(null)
+  const [odvError, setOdvError] = useState<string | null>(null)
+  const [odvPending, setOdvPending] = useState(false)
 
   const pushTx = useCallback((kind: TxActivity['kind'], label: string, hash: string) => {
     const tx: TxActivity = {
@@ -79,13 +82,37 @@ export function useDemoFlow({ refreshWallet, senderAddress }: Deps) {
     [pushTx, refreshWallet, senderAddress],
   )
 
-  const requestOracle = useCallback(() => {
-    setSettlement((cur) => {
-      if (!cur || cur.status !== 'armed') return cur
-      const odvTxHash = mockTxHash('odv')
-      pushTx('odv', 'ODV oracle request', odvTxHash)
-      return { ...cur, status: 'settling', odvTxHash, updatedAt: Date.now() }
-    })
+  const requestOracle = useCallback(async () => {
+    if (!ORACLE_FEED_LIVE) {
+      setSettlement((cur) => {
+        if (!cur || cur.status !== 'armed') return cur
+        const odvTxHash = mockTxHash('odv')
+        pushTx('odv', 'ODV oracle request', odvTxHash)
+        return { ...cur, status: 'settling', odvTxHash, updatedAt: Date.now() }
+      })
+      return
+    }
+    setOdvPending(true)
+    setOdvError(null)
+    try {
+      const res = await submitOdvRequest()
+      setSettlement((cur) => {
+        if (!cur || cur.status !== 'armed') return cur
+        pushTx('odv', 'ODV oracle request', res.odv_tx_hash)
+        return {
+          ...cur,
+          status: 'settling',
+          odvTxHash: res.odv_tx_hash,
+          oracleUtxoRef: res.oracle_utxo_ref,
+          oracleMedianPriceAtSubmit: res.price.median_price,
+          updatedAt: Date.now(),
+        }
+      })
+    } catch (err) {
+      setOdvError(err instanceof Error ? err.message : 'odv submit failed')
+    } finally {
+      setOdvPending(false)
+    }
   }, [pushTx])
 
   const release = useCallback(() => {
@@ -106,6 +133,8 @@ export function useDemoFlow({ refreshWallet, senderAddress }: Deps) {
     settlement,
     activity,
     datumError,
+    odvError,
+    odvPending,
     createSettlement,
     requestOracle,
     release,

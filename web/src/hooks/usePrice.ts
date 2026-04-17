@@ -1,12 +1,15 @@
 /*
  * Charli3 Hackathon settlement demo. MIT License.
  *
- * Polls the Charli3 ODV pull oracle. Day 1 / Day 2 morning the underlying
- * source is `/stub/oracle-feed.json`, a frozen snapshot of one real
- * `request_fresh_price` run from `oracle-client/out/sample-run.json`. By
- * Saturday EOD this URL switches to the Oracle Engineer's HTTP service
- * (CHA-18). The wire shape on disk and over HTTP is intentionally identical
- * so the swap is a one-line change.
+ * Polls the Charli3 ODV pull oracle. The data source is selected by the
+ * `ORACLE_FEED_LIVE` flag in `lib/oracleService.ts`:
+ *   - false (default): /stub/oracle-feed.json, a frozen snapshot of one real
+ *     `request_fresh_price` run from `oracle-client/out/sample-run.json`.
+ *   - true: /api/oracle/price, proxied via Vite to the Oracle Engineer's
+ *     Python wrapper on 127.0.0.1:8001 (CHA-18).
+ *
+ * Wire shape is identical on disk and over HTTP, so flipping the flag is a
+ * one-line change.
  *
  * The Charli3 SDK publishes the price as an integer scaled by 1e6
  * (`oracle-client/src/oracle_client/settlement.py` constant `1_000_000`).
@@ -15,26 +18,16 @@
  * trip into the EscrowDatum without losing precision.
  */
 import { useEffect, useRef, useState } from 'react'
+import {
+  fetchOracleFeed,
+  ORACLE_FEED_LIVE,
+  ORACLE_FEED_STUB_URL,
+  ORACLE_PRICE_URL,
+  type RawOracleFeed,
+} from '../lib/oracleService'
 
-const FEED_URL = '/stub/oracle-feed.json'
-// Flip to true once the Oracle Engineer's HTTP wrapper of `request_fresh_price`
-// is reachable from the dev server. Until then we are reading the snapshot.
-const FEED_IS_LIVE = false
 const PAIR = 'ADA/USD'
 const PRICE_SCALE = 1_000_000
-
-/** Wire shape on disk and over HTTP. Snake_case to match the Python service. */
-interface RawOracleFeed {
-  median_price: number
-  chain_time_ms: number
-  validity_start_ms: number
-  validity_end_ms: number
-  node_feeds_count: number
-  oracle_address: string
-  policy_id: string
-  network: string
-  feed_request_latency_ms: number
-}
 
 export interface PriceTick {
   pair: string
@@ -86,14 +79,12 @@ export function usePrice(intervalMs = 5000) {
 
   useEffect(() => {
     cancelled.current = false
-    const sourceLabel = FEED_IS_LIVE ? FEED_URL : 'stub://sample-run-snapshot'
+    const sourceLabel = ORACLE_FEED_LIVE ? ORACLE_PRICE_URL : ORACLE_FEED_STUB_URL
     const fetchOnce = async () => {
       try {
-        const res = await fetch(`${FEED_URL}?_=${Date.now()}`, { cache: 'no-store' })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const raw = (await res.json()) as RawOracleFeed
+        const raw = await fetchOracleFeed(ORACLE_FEED_LIVE)
         if (!cancelled.current) {
-          setTick(adapt(raw, sourceLabel, FEED_IS_LIVE))
+          setTick(adapt(raw, sourceLabel, ORACLE_FEED_LIVE))
           setError(null)
           setLoading(false)
         }

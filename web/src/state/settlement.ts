@@ -34,6 +34,11 @@ export interface Settlement {
   datumCborHex?: string
   /** Mirror of the encoded fields, ready to render verbatim. */
   datumFields?: Record<string, string>
+  /** "txHash#index" pointing at the oracle UTxO returned by /api/oracle/odv/submit;
+   *  the release tx attaches this as a reference input. */
+  oracleUtxoRef?: string
+  /** Median price (scaled 1e6) embedded in the oracle UTxO at submit time. */
+  oracleMedianPriceAtSubmit?: number
   createdAt: number
   updatedAt: number
 }
