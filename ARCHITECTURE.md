@@ -97,9 +97,9 @@ Owner: Full-Stack Frontend Developer.
 
 Public surface, three screens:
 
-- `/` — connect wallet (CIP-30), show ADA/USD spot from the oracle-client backend, CTA to "Create a price-triggered settlement."
-- `/create` — form: feed, direction, threshold, beneficiary address, amount, refund-after. Builds and submits the lock transaction via CIP-30 `signTx`.
-- `/settlement/:txHash` — status page. Polls the oracle-client backend for trigger state. When triggered, shows "Settling..." then "Settled" with the settlement tx hash.
+- `/`: connect wallet (CIP-30), show ADA/USD spot from the oracle-client backend, CTA to "Create a price-triggered settlement."
+- `/create`: form: feed, direction, threshold, beneficiary address, amount, refund-after. Builds and submits the lock transaction via CIP-30 `signTx`.
+- `/settlement/:txHash`: status page. Polls the oracle-client backend for trigger state. When triggered, shows "Settling..." then "Settled" with the settlement tx hash.
 
 The web app talks to the oracle-client over a thin JSON HTTP surface at `/api/*` (served by the oracle-client process or a sidecar):
 

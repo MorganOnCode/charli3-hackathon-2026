@@ -24,9 +24,9 @@ pyproject.toml
 
 ## Canonical references (read before writing code)
 
-1. `charli3-pull-oracle-client` repo — the consumer SDK.
-2. `datum-demo-v3` and the swap-contract demo — the canonical reference-UTXO pattern.
-3. `hackathon-resources` — Preprod feed configs.
+1. `charli3-pull-oracle-client` repo: the consumer SDK.
+2. `datum-demo-v3` and the swap-contract demo: the canonical reference-UTXO pattern.
+3. `hackathon-resources`: Preprod feed configs.
 
 See [../ARCHITECTURE.md](../ARCHITECTURE.md) for the full interface contract.
 
