@@ -39,7 +39,7 @@ export const ORACLE_PREPROD = {
   scriptAddress: 'addr_test1wpa7rvc3sse9x2shvx6defy3htm69j8v9q6469xn7yr5mrgzaqyn9',
   oracleAddress: 'addr_test1wq3pacs7jcrlwehpuy3ryj8kwvsqzjp9z6dpmx8txnr0vkq6vqeuu',
   oraclePolicyId: '886dcb2363e160c944e63cf544ce6f6265b22ef7c4e2478dd975078e',
-  oracleAssetName: '4f524143', // "ORAC" placeholder per Aiken test; Oracle Engineer confirms Saturday.
+  oracleAssetName: '43334153', // ASCII "C3AS" - confirmed by OracleEngineer NOTES.md against live Preprod oracle UTxO.
   priceScale: 1_000_000n,        // Charli3 oracles publish int prices scaled by 1e6.
   defaultStalenessMs: 300_000n,  // 5 minutes, matches odv_validity_length in the YAML config.
 }
