@@ -52,6 +52,12 @@
 
 **1:35, agent terminal.** "The agent is polling the ODV feed. Current price, zero point two five three, trigger zero point two seven. Watch the log." Pause for the scripted ODV push.
 
+> **Presenter side action (off-mic).** DemoDirector fires the cue-able push from a second terminal:
+> ```
+> WALLET_MNEMONIC='<funded-24-words>' python oracle-client/scripts/demo_push.py --trigger-price 270000 --direction above
+> ```
+> Script lives at `dev@222c021`, tagged `cha-18-day2-partial`. Measured Preprod latency 6 to 10 s warm, well inside the 15 s envelope. Exit code 0 = crossed and submitted, exit 5 = over-budget (presenter narrates over while we wait), exit 4 = did not cross (rerun). Pre-flight dry run before going live: append `--dry-run`.
+
 **1:45, oracle cross.** "Price just crossed. The agent submits the ODV request." Terminal advances. "Fresh price datum on chain, signed by both Charli3 Preprod nodes."
 
 **2:00, release tx.** "Agent references the oracle UTXO as a read-only input and spends the escrow. Same block." Flip to Cardanoscan. "Two inputs, one output. Fifty tADA to the beneficiary."

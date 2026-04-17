@@ -12,9 +12,25 @@ Pre-requirements confirmed earlier that day:
 
 - FrontendDev (CHA-12): escrow card state machine (Draft, Armed, Settling, Settled) visible in the UI by 18:00 Bangkok.
 - SmartContractDev: Aiken validator producing a real release tx on Preprod by 18:00 Bangkok.
-- OracleEngineer: scripted ODV push crossing the trigger within 15 seconds of the rule being armed by 19:00 Bangkok.
+- OracleEngineer: scripted ODV push crossing the trigger within 15 seconds of the rule being armed by 19:00 Bangkok. Script is ready at `oracle-client/scripts/demo_push.py` (`dev@222c021`, tag `cha-18-day2-partial`); measured warm latency 6 to 10 s on Preprod. Live submission still gated on Preprod wallet funding via [CHA-18](/CHA/issues/CHA-18) (CTO target 14:00 Bangkok).
 
 If any pre-requirement slips, file a blocker on [CHA-15](/CHA/issues/CHA-15) and push the recording slot to 22:00 Bangkok. Do not record against a broken stack.
+
+### Cue-able push command for recording
+
+Second terminal, off-camera. Pre-flight dry-run before each take:
+
+```
+python oracle-client/scripts/demo_push.py --trigger-price 270000 --direction above --dry-run
+```
+
+Live push during the take, fired the moment the escrow card flips to `Armed`:
+
+```
+WALLET_MNEMONIC='<funded-24-words>' python oracle-client/scripts/demo_push.py --trigger-price 270000 --direction above
+```
+
+Exit code 0 means crossed and submitted under 15 s; rerun the take if exit 4 (did not cross) or exit 5 (over budget).
 
 ## Capture stack
 
@@ -58,7 +74,7 @@ Keep the raw MKVs until Sunday submission is uploaded.
 - Lock amount: **50 tADA**
 - Trigger: **ADA/USD >= 0.27**
 - Current price at arm time: **~0.253 USD/ADA** (live Preprod median across two Charli3 nodes)
-- Scripted ODV push target: **0.271 USD/ADA** (datum field `price_usd: 271000`, 6 decimal scaling)
+- Scripted ODV push target: **just above 0.270 USD/ADA** (datum field `price_usd > 270000`, 6 decimal scaling; exact value is whatever the median aggregator returns at push time per OracleEngineer)
 - Expiry: **2026-04-20 00:00 UTC**
 - Beneficiary balance change: **100 tADA to 150 tADA**
 - Node signatures: **2 of 2** (Charli3 Preprod feed has two nodes; both must agree per `oracle-client/configs/ada-usd-preprod.yml`)

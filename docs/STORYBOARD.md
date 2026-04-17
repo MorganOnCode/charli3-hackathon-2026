@@ -66,7 +66,7 @@ Every moment must show a screen, a voiceover line, and a visible proof (transact
 
 ### F8. ODV transaction on chain (1:30 to 1:45, 15s)
 
-- **Screen:** Cardanoscan Preprod again. The ODV consume transaction. Highlight the oracle feed UTXO output with its fresh datum. Decoded overlay shows `price_usd: 271000, timestamp: 2026-04-19T15:02:11Z, node_signatures: 2 of 2`. Asset name overlay reads `C3AS` under the policy id `886dcb...078e`.
+- **Screen:** Cardanoscan Preprod again. The ODV consume transaction. Highlight the oracle feed UTXO output with its fresh datum. Decoded overlay shows `price_usd: <live value, e.g. 271000>, timestamp: <POSIX ms>, node_signatures: 2 of 2`. Asset name overlay reads `C3AS` under the policy id `886dcb...078e`. Whatever value the demo-push script aggregates at run time is the value we render in post; do not pre-bake `271000` into the lower-third graphic.
 - **Voiceover:** "Charli3's node network signs the price on demand. Both Preprod nodes signed, timestamped, on chain. This is the oracle moment."
 - **Visible proof:** ODV tx hash, decoded datum, signature count. Label "Charli3 ODV feed UTXO" with an arrow in post.
 
@@ -115,7 +115,7 @@ These tokens are intentionally faked in v2 and will be substituted once the code
 |---|---|---|---|
 | `addr_test1...` beneficiary address | F4, F6 | FrontendDev (CHA-12) wallet panel + OracleEngineer settlement script | Saturday 2026-04-18 18:00 Bangkok |
 | Deposit tx hash `9f3a...c1` | F5, F6 | SmartContractDev escrow release tx on Preprod | Saturday 2026-04-18 18:00 Bangkok |
-| ODV tx hash and datum `price_usd: 271000` | F7, F8 | OracleEngineer scripted ODV push | Saturday 2026-04-18 19:00 Bangkok |
+| ODV tx hash and datum `price_usd` (live value, illustrative `271000`) | F7, F8 | OracleEngineer scripted ODV push (`oracle-client/scripts/demo_push.py`, ready at `dev@222c021`) | Saturday 2026-04-18 19:00 Bangkok (script ready Friday; gated on Preprod wallet funding tracked at [CHA-18](/CHA/issues/CHA-18) by 14:00 Bangkok per OracleEngineer) |
 | Release tx hash `7b2e...88` | F9, F10 | SmartContractDev + OracleEngineer joint run | Saturday 2026-04-18 18:00 Bangkok |
 | Beneficiary balance 100 to 150 tADA | F10 | FrontendDev second Lace wallet screenshot | Saturday 2026-04-18 18:00 Bangkok |
 
