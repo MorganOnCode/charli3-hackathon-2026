@@ -51,7 +51,7 @@ export function getInitial(key: WalletKey): Cip30Initial | undefined {
 /**
  * CIP-30 returns balance as a CBOR-hex Value. Pure-ADA wallets encode it as a
  * single uint (lovelace). Multi-asset balances encode it as a [coin, multiasset]
- * array. We only need the lovelace number here — fall back to 0 on parse miss.
+ * array. We only need the lovelace number, so we fall back to 0 on parse miss.
  */
 export function lovelaceFromBalanceCbor(hex: string): bigint {
   if (!hex) return 0n

@@ -8,9 +8,9 @@ import type { useWallet } from '../hooks/useWallet'
 type WalletApi = ReturnType<typeof useWallet>
 
 export function WalletPanel({ wallet }: { wallet: WalletApi }) {
-  const networkLabel = wallet.networkId !== null ? NETWORK_LABEL[wallet.networkId] ?? `id ${wallet.networkId}` : '—'
+  const networkLabel = wallet.networkId !== null ? NETWORK_LABEL[wallet.networkId] ?? `id ${wallet.networkId}` : 'no data'
   const networkOk = wallet.networkId === 0
-  const ada = wallet.api ? `${lovelaceToAda(wallet.lovelace)} tADA` : '—'
+  const ada = wallet.api ? `${lovelaceToAda(wallet.lovelace)} tADA` : 'no data'
 
   return (
     <section className="bg-panel border border-edge rounded-xl p-5 flex flex-col gap-4">
@@ -57,7 +57,7 @@ export function WalletPanel({ wallet }: { wallet: WalletApi }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <Row label="Provider" value={wallet.label ?? '—'} />
+          <Row label="Provider" value={wallet.label ?? 'no data'} />
           <Row label="Balance" value={ada} mono />
           <Row label="Address" value={truncate(wallet.changeAddress)} mono small />
           <div className="flex gap-2">
@@ -103,7 +103,7 @@ function Row({ label, value, mono, small }: { label: string; value: string; mono
 }
 
 function truncate(addr: string | null): string {
-  if (!addr) return '—'
+  if (!addr) return 'no data'
   if (addr.length <= 24) return addr
   return `${addr.slice(0, 12)}…${addr.slice(-10)}`
 }
