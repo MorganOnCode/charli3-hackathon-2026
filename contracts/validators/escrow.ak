@@ -14,10 +14,14 @@
 
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
+use aiken/interval as ivl
 use aiken/interval.{Finite, Interval, IntervalBound}
+use cardano/address
+use cardano/assets
 use cardano/assets.{AssetName, PolicyId, quantity_of}
+use cardano/transaction as tx_mod
 use cardano/transaction.{InlineDatum, Input, OutputReference, Transaction}
-use oracle.{OracleReading, read_data}
+use oracle.{AggState, OracleReading, PriceMap, read_data}
 
 /// Which side of the trigger price unlocks the escrow.
 pub type Direction {
@@ -147,12 +151,6 @@ pub fn check_reclaim(d: EscrowDatum, tx: Transaction) -> Bool {
 
 // --- tests ---------------------------------------------------------------
 
-use aiken/interval as ivl
-use cardano/address
-use cardano/assets
-use cardano/transaction as tx_mod
-use oracle.{AggState, PriceMap}
-
 const beneficiary_vkh: VerificationKeyHash =
   #"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
@@ -262,12 +260,13 @@ test release_without_beneficiary_signature_blocked() fail {
 }
 
 test release_with_stale_feed_blocked() fail {
-  let datum = mock_datum(Above, 1_000_000, 10_000_000)
+  let base = mock_datum(Above, 1_000_000, 10_000_000)
+  let datum = EscrowDatum { ..base, max_staleness_ms: 100 }
   let tx =
     Transaction {
       ..tx_mod.placeholder,
-      reference_inputs: [mock_oracle_input(1_500_000, 1000, 5000)],
-      validity_range: ivl.between(4500, 4999),
+      reference_inputs: [mock_oracle_input(1_500_000, 1_000, 10_000)],
+      validity_range: ivl.between(5_000, 6_000),
       extra_signatories: [beneficiary_vkh],
     }
   check_release(datum, tx)
