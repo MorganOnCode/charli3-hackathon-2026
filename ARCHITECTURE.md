@@ -87,9 +87,30 @@ Owner: Cardano Smart Contract Developer.
 
 Public surface, one validator:
 
-- `validators/settlement_escrow.ak`: parameterized by the Charli3 oracle script hash. Datum: `EscrowDatum { beneficiary: Address, trigger: TriggerRule, refund_after: PosixTime, depositor: Address }`. Redeemer: `Redeem { Release | Refund }`. Release requires a reference input at the oracle script, decoded as `GenericData`, with `price_map[0]` satisfying the trigger and `price_map[2]` (expiry) not yet elapsed. Refund requires `refund_after` to have passed.
+- `validators/escrow.ak` (validator title `escrow.escrow.spend`). Datum:
 
-Blueprint output (`plutus.json`) is committed at `contracts/plutus.json` so the off-chain agent can load the validator hash and build escrow addresses. The blueprint is the handoff contract.
+  ```aiken
+  pub type EscrowDatum {
+    beneficiary: VerificationKeyHash,      // signs Release
+    sender: VerificationKeyHash,           // signs Reclaim after expiry
+    trigger_price: Int,                    // scaled by 1e6, same as oracle price_map[0]
+    direction: Direction,                  // Above | Below
+    expiry_posix: Int,                     // ms since epoch; Reclaim gate
+    max_staleness_ms: Int,                 // tx.validity_range must fit within oracle [ts, ts + staleness]
+    oracle_policy_id: PolicyId,            // NFT policy pinning the canonical oracle UTxO
+    oracle_asset_name: AssetName,          // NFT asset name (Preprod ADA/USD: 0x43334153 "C3AS")
+  }
+  ```
+
+  Redeemer `EscrowRedeemer = Release | Reclaim`.
+
+  `Release` requires (a) a reference input at any script address carrying the pinned oracle NFT, decoded as `GenericData`, (b) the reading's `price` satisfies the trigger per `direction`, (c) `tx.validity_range` lies inside `[reading.timestamp, min(reading.expiry, reading.timestamp + max_staleness_ms)]`, (d) the beneficiary vkh is in `extra_signatories`.
+
+  `Reclaim` requires (a) `tx.validity_range.lower >= expiry_posix`, (b) the sender vkh is in `extra_signatories`.
+
+Blueprint output (`contracts/plutus.json`) carries the validator hash. The off-chain agent and the frontend derive the escrow script address from it. Current Preprod build: `addr_test1wpa7rvc3sse9x2shvx6defy3htm69j8v9q6469xn7yr5mrgzaqyn9`.
+
+Oracle datum decode lives in `contracts/lib/oracle.ak` (`GenericData::AggState`, `PriceData::PriceMap`, `OracleReading { price, timestamp, expiry }`). See also `oracle-client/NOTES.md` for the Python/Aiken naming map and the live Preprod oracle identifiers.
 
 ### web (React + Vite, frontend)
 
