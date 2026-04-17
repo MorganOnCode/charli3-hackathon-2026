@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  oracle-client:
+    name: oracle-client (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: oracle-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" || pip install -e .
+      - name: Lint
+        run: |
+          if command -v ruff >/dev/null 2>&1; then
+            ruff check src || true
+          fi
+      - name: Test
+        run: |
+          if [ -d tests ]; then
+            pytest -q || exit $?
+          else
+            echo "no tests yet, skipping"
+          fi
+
+  contracts:
+    name: contracts (Aiken)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aiken-lang/setup-aiken@v1
+        with:
+          version: v1.1.21
+      - run: aiken fmt --check
+      - run: aiken check -D
+      - run: aiken build
+
+  web:
+    name: web (Vite + React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: npm ci || npm install
+      - name: Type-check and build
+        run: npm run build

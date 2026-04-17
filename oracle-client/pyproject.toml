@@ -1,0 +1,25 @@
+[project]
+name = "charli3-hackathon-oracle-client"
+version = "0.1.0"
+description = "Charli3 ODV pull oracle integration for the Charli3 Hackathon 2026"
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "MorganOnCode", email = "morganic.thailand@gmail.com" },
+]
+
+dependencies = [
+    "odv-multisig-charli3-client-sdk @ git+https://github.com/Charli3-Official/charli3-pull-oracle-client.git",
+    "pyyaml>=6.0",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

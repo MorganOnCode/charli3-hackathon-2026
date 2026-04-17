@@ -1,0 +1,44 @@
+# Charli3 ODV Client configuration for ADA/USD feed on Preprod.
+#
+# Endpoint IPs are the publicly exposed Charli3 hackathon Preprod instance,
+# taken from TECHNICAL-BRIEF.md and verified reachable from the agent host.
+# The oracle_address, policy_id, reference_script, and nodes entries are the
+# canonical values from charli3-official/hackathon-resources/configs/ada-usd-preprod.yml.
+#
+# The wallet mnemonic is the BIP-39 zero-ADA test vector ("abandon ... about").
+# This is intentional: poll_price.py reads feeds and builds an ODV transaction
+# locally without submitting, so no funds are required for Day 1.
+#
+# Override the mnemonic with the WALLET_MNEMONIC env var before trying to
+# submit on-chain (Saturday deliverable).
+
+network:
+  network: "testnet"
+  ogmios_kupo:
+    ogmios_url: "ws://35.209.192.203:1337"
+    kupo_url: "http://35.209.192.203:1442"
+
+wallet:
+  mnemonic: "$WALLET_MNEMONIC"
+  network: "testnet"
+
+oracle_address: "addr_test1wq3pacs7jcrlwehpuy3ryj8kwvsqzjp9z6dpmx8txnr0vkq6vqeuu"
+policy_id: "886dcb2363e160c944e63cf544ce6f6265b22ef7c4e2478dd975078e"
+
+tokens:
+  reward_token_policy: ""
+  reward_token_name: ""
+
+odv_validity_length: 300000
+
+reference_script:
+  address: "addr_test1wrtqtdlqc66rzl2hcjhq5p0dfmalw944pwcne6p5kafthhqtzp03x"
+  utxo_reference:
+    transaction_id: "7a69e9d3d90826f861107e4b503c56e08c40d092416a50bad37fc89865a78cd1"
+    output_index: 0
+
+nodes:
+  - root_url: "http://35.208.117.223:8001"
+    pub_key: "582037c6febc9c2f940a38a5c1ea35eb9353ae233497bf9564395c76bf7b0590c4eb"
+  - root_url: "http://35.208.117.223:8002"
+    pub_key: "58205a23e6016659b8c644efcb49301184f6d712037579df6793a50eae332f510248"
