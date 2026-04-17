@@ -1,10 +1,11 @@
 # STORYBOARD: Charli3 Hackathon Submission Video
 
 **Owner:** DemoDirector
-**Version:** v1 (Friday 2026-04-17)
+**Version:** v2 copy-lock (Friday 2026-04-17 pre-pass; real Preprod values substituted Saturday 2026-04-18 after dependency handoff)
 **Target length:** 2 minutes 30 seconds
 **Submission deadline:** Sunday 2026-04-19, 22:00 Bangkok (internal record-by 16:00)
 **Distribution:** YouTube unlisted link in the submission form, mirror on Loom as a fallback
+**Locked pitch phrase (from PITCH.md, used once in F1):** `price-conditional settlement on Cardano, powered by Charli3 ODV`
 
 ## Product in one line
 
@@ -104,7 +105,21 @@ Every moment must show a screen, a voiceover line, and a visible proof (transact
 
 ## Voiceover budget
 
-Roughly 370 words at 150 words per minute. Leave 5 seconds of breathing room between major sections. If I go over 2:45, cut F2 by 5 seconds first, then F11.
+Current v2 word count is 282 across F1 to F12, which fits inside the 370-word ceiling with roughly 35 seconds of natural breathing room distributed between sections at 150 words per minute. Do not pad to use the budget. If any frame runs over on rehearsal, cut F2 first by 5 seconds, then F11. The 370-word ceiling holds under the operating rules even if F4 and F10 expand when real Preprod addresses and balances are read aloud.
+
+## Placeholders awaiting Saturday handoff
+
+These tokens are intentionally faked in v2 and will be substituted once the code stack feeds real data. Each swap is a single-line edit in this file.
+
+| Token | Frame | Source | Due |
+|---|---|---|---|
+| `addr_test1...` beneficiary address | F4, F6 | FrontendDev (CHA-12) wallet panel + OracleEngineer settlement script | Saturday 2026-04-18 18:00 Bangkok |
+| Deposit tx hash `9f3a...c1` | F5, F6 | SmartContractDev escrow release tx on Preprod | Saturday 2026-04-18 18:00 Bangkok |
+| ODV tx hash and datum `price_usd: 551000` | F7, F8 | OracleEngineer scripted ODV push | Saturday 2026-04-18 19:00 Bangkok |
+| Release tx hash `7b2e...88` | F9, F10 | SmartContractDev + OracleEngineer joint run | Saturday 2026-04-18 18:00 Bangkok |
+| Beneficiary balance 100 to 150 tADA | F10 | FrontendDev second Lace wallet screenshot | Saturday 2026-04-18 18:00 Bangkok |
+
+Lock amount (50 tADA) and balance delta (100 to 150 tADA) are confirmed against LIVE_DEMO_SCRIPT.md. If FrontendDev or SmartContractDev land different numbers, file a blocker on CHA-15 so the script and storyboard update together.
 
 ## What the UI must show (FrontendDev dependencies)
 
@@ -141,7 +156,7 @@ Why OBS over Loom for the submission video:
 
 ## Backup plan
 
-If Preprod is slow on Sunday, we pre-record a clean end-to-end run Saturday 2026-04-18 evening and use it as the video submission. The live demo on Sunday can reference the same screens, with a narration-over-pre-recorded fallback if live chain interactions stall past 20 seconds.
+If Preprod is slow on Sunday, we pre-record a clean end-to-end run Saturday 2026-04-18 at 20:00 Bangkok and use it as the video submission. The live demo on Sunday can reference the same screens, with a narration-over-pre-recorded fallback if live chain interactions stall past 20 seconds. Recording logistics, raw-file location, and hosted URL are tracked in [`docs/BACKUP_VIDEO.md`](./BACKUP_VIDEO.md).
 
 ## Live demo script v1
 

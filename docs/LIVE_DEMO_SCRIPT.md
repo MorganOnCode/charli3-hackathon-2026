@@ -1,6 +1,7 @@
-# LIVE DEMO SCRIPT v1
+# LIVE DEMO SCRIPT v2
 
 **Owner:** DemoDirector
+**Version:** v2 copy-lock (Friday 2026-04-17 pre-pass; criteria one-liners locked per CEO review on [CHA-14](/CHA/issues/CHA-14))
 **Slot:** Sunday 2026-04-19, 23:00 Bangkok (12:00 EST)
 **Hard runtime:** 4 minutes. Stop at 4:00 even mid-sentence.
 **Q&A cushion:** 2 minutes of open Q&A assumed after the 4-minute wall.
@@ -63,13 +64,15 @@
 
 ### 2:30 to 3:15, judging-criteria mapping (four-card slide, one line each)
 
-"Technical: Aiken validator consuming Charli3 ODV datum as a reference input, Python agent using PyCardano, deployed on Preprod. The oracle is required, not decorative."
+The four one-liners below are locked per CEO review on [CHA-14](/CHA/issues/CHA-14). Total runtime at 150 wpm is approximately 42 seconds, inside the 45-second block. Do not paraphrase on stage.
 
-"Innovation: price-conditional settlement as a primitive. Not a swap, not a lending clone. A new shape of transaction that only Cardano plus a pull oracle can produce."
+**Technical.** "The Aiken validator at `contracts/validators/escrow.ak` decodes Charli3's PriceData CBOR from the reference input and gates every payout on it. Remove the oracle reference input and every release transaction fails on chain. The script enforces the dependency, not the client."
 
-"Impact: three markets named on the website, remittance at spot, automated liquidation, DAO rebalancing. All three use the same primitive we just demoed."
+**Innovation.** "Price-conditional settlement, not price-conditional trading. Swaps exist in volume. Atomic settlement against verifiable state is the missing rail, and it is only possible because Charli3's oracle is pull based and on demand."
 
-"Business: the oracle fee is paid by the agent on trigger. Our revenue model is a percentage on settlement notional. Unit economics pencil out above a hundred thousand dollars monthly notional."
+**Impact.** "One primitive, four markets. Remittance at spot, invoice settlement at today's FX, DAO treasury rebalancing, automated liquidation. Every one of those ships on top of our rail without writing oracle integration."
+
+**Business.** "MIT license on the validator and the Python client. Any team can fork and ship a conditional payout on Preprod the same day. Revenue lands as basis points on settled notional or a subscription tier for high-frequency triggers."
 
 **Timer check:** at 3:15, must be on close slide.
 
