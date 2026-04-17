@@ -49,6 +49,25 @@ The script does not submit any transaction. Saturday's work adds
 `submit_odv.py` (ODV tx plus chained dApp settlement release) and
 `src/oracle_client/settlement.py` consumed by the frontend backend.
 
+## Serve the HTTP shim (for `/web` dev server)
+
+```bash
+oracle-client/.venv/bin/python -m oracle_client.http_app
+```
+
+Binds `127.0.0.1:8001`. Two routes consumed by `web/src/lib/oracleService.ts`
+through the Vite proxy `/api/oracle/* -> http://127.0.0.1:8001/*`:
+
+- `GET /price` returns the locked nine-field snake_case JSON (matches
+  `oracle-client/out/sample-run.json`). Live Preprod feed, ~300ms latency.
+- `POST /odv/submit` submits the ODV aggregation tx. Body is ignored. Requires
+  a funded Preprod wallet via `WALLET_MNEMONIC` (see `NOTES.md`).
+- `GET /healthz` returns `{"status": "ok"}` for readiness probes.
+
+Override host/port/config with `ORACLE_HTTP_HOST`, `ORACLE_HTTP_PORT`,
+`ORACLE_CONFIG_PATH`. No CORS headers; the dev web app reaches the shim
+through Vite's same-origin proxy.
+
 ## Canonical references
 
 1. `charli3-pull-oracle-client` (MIT): the consumer SDK.
