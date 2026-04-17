@@ -62,6 +62,10 @@ export async function fetchOracleFeed(live: boolean, signal?: AbortSignal): Prom
  * Trigger a fresh ODV pull. The wrapper signs and submits the request tx
  * server-side using the funded preprod wallet and returns the on-chain
  * coordinates of the new oracle UTxO.
+ *
+ * On failure (e.g. 502 while the wrapper wallet is unfunded) the wrapper
+ * returns `{"error": "..."}`. We surface that message verbatim so the UI
+ * can show the underlying chain reason rather than a generic HTTP code.
  */
 export async function submitOdvRequest(signal?: AbortSignal): Promise<OdvSubmitResponse> {
   const res = await fetch(ORACLE_ODV_SUBMIT_URL, {
@@ -70,13 +74,28 @@ export async function submitOdvRequest(signal?: AbortSignal): Promise<OdvSubmitR
     body: '{}',
     signal,
   })
-  if (!res.ok) throw new Error(`odv submit HTTP ${res.status}`)
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`
+    try {
+      const body = (await res.json()) as { error?: string }
+      if (body?.error) detail = body.error
+    } catch {
+      // body not JSON; keep the HTTP status fallback.
+    }
+    throw new Error(detail)
+  }
   return (await res.json()) as OdvSubmitResponse
 }
 
 /**
- * Single-source-of-truth flag. Flip to `true` once the wrapper from CHA-18
- * is reachable on `127.0.0.1:8001`. The price hook and demo flow both read
- * from here so wire-up is a one-line change.
+ * Single-source-of-truth flag. Wrapper from CHA-18 confirmed reachable on
+ * 127.0.0.1:8001 (Oracle Engineer ack 2026-04-17 in CHA-12 comment
+ * 69e9a37c). The price hook and demo flow both read from here so wire-up
+ * is a one-line change.
+ *
+ * Note: `POST /odv/submit` returns 502 until the Preprod wallet at
+ * `addr_test1qquj2z80zhxqzzt5elt5t3cyufg4s23vtxx8lsg8tg6yc9aghkxat8ym4gd7jd8y2dx7tmrj80a4mrttkjphzyfjmftq3lpt4u`
+ * is funded (tracked in CHA-18). The price panel and read-only flow are
+ * fully live regardless; the Settle button surfaces the error inline.
  */
-export const ORACLE_FEED_LIVE = false
+export const ORACLE_FEED_LIVE = true

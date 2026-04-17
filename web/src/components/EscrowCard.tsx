@@ -17,9 +17,13 @@ interface Props {
   onArmOracle: () => void
   onRelease: () => void
   onReset: () => void
+  /** Last error from POST /api/oracle/odv/submit, surfaced under the action row. */
+  odvError?: string | null
+  /** True while an ODV submit is in flight (~1.5s end-to-end on the live wrapper). */
+  odvPending?: boolean
 }
 
-export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, onReset }: Props) {
+export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, onReset, odvError, odvPending }: Props) {
   if (!settlement) {
     return (
       <section className="bg-panel border border-edge rounded-xl p-5 flex flex-col gap-3 lg:col-span-2">
@@ -65,21 +69,30 @@ export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, o
         <DatumPreview cborHex={settlement.datumCborHex} fields={settlement.datumFields} />
       )}
 
+      {odvError && settlement.status === 'armed' && (
+        <p className="text-xs font-mono text-bad bg-bad/10 border border-bad/40 rounded px-3 py-2">
+          ODV submit failed: {odvError}
+        </p>
+      )}
+
       <footer className="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-edge">
         <ConditionReadout settlement={settlement} currentPrice={currentPrice} crossed={crossed} />
         <div className="flex gap-2">
           {settlement.status === 'armed' && (
             <button
               onClick={onArmOracle}
+              disabled={odvPending}
               className={
                 'px-3 py-2 rounded text-sm font-medium border transition ' +
-                (crossed
+                (odvPending
+                  ? 'border-edge text-muted cursor-wait'
+                  : crossed
                   ? 'border-accent text-accent hover:bg-accent/10 animate-pulse'
                   : 'border-edge text-muted hover:text-slate-200')
               }
               title="Send the ODV request to Charli3 to pull a fresh oracle tick"
             >
-              Request ODV tick
+              {odvPending ? 'Submitting ODV...' : 'Request ODV tick'}
             </button>
           )}
           {settlement.status === 'settling' && (

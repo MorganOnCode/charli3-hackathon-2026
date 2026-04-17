@@ -43,6 +43,8 @@ function App() {
           onArmOracle={demo.requestOracle}
           onRelease={demo.release}
           onReset={demo.reset}
+          odvError={demo.odvError}
+          odvPending={demo.odvPending}
         />
       </main>
 
