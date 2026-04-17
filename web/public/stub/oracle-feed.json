@@ -1,0 +1,11 @@
+{
+  "median_price": 252827,
+  "chain_time_ms": 1776402913000,
+  "validity_start_ms": 1776402763000,
+  "validity_end_ms": 1776403063000,
+  "node_feeds_count": 2,
+  "oracle_address": "addr_test1wq3pacs7jcrlwehpuy3ryj8kwvsqzjp9z6dpmx8txnr0vkq6vqeuu",
+  "policy_id": "886dcb2363e160c944e63cf544ce6f6265b22ef7c4e2478dd975078e",
+  "network": "testnet",
+  "feed_request_latency_ms": 1494.17
+}
