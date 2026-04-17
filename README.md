@@ -1,16 +1,18 @@
-# Price-conditional settlement on Cardano
+# ConditionalPay
 
-Lock ADA with a price rule, and it pays out the moment [Charli3](https://charli3.io)'s ODV pull oracle proves the rule is true, in a single Cardano transaction.
+ConditionalPay lets an autonomous agent escrow ADA against a price rule and pay a counterparty the instant [Charli3](https://charli3.io)'s ODV pull oracle proves the rule, in one Cardano transaction with no human in the loop.
 
 Built for the [Charli3 Hackathon](https://charli3.io), April 17 to 19, 2026. Primary track: **Best in Real World Settlements**. Compound target: **People's Choice**.
 
 ## What this is
 
-A depositor locks ADA in an on-chain Aiken escrow with one rule: release to the beneficiary when ADA/USD crosses a trigger. An off-chain Python agent watches Charli3's ODV feed, builds the ODV transaction, and submits a settlement transaction in the same block. The Aiken validator refuses to release the payout unless Charli3's oracle UTXO, attached as a reference input, proves the trigger is satisfied. Remove the oracle and the release never fires.
+The user is an autonomous agent holding ADA on behalf of a principal. Picture a DAO treasury rebalancer: a bot the DAO trusts to move funds when the market meets a pre-approved condition, but that the DAO will not trust with unconditional payout authority. A human cannot sit in the loop for every fire. ConditionalPay binds the agent's permission to verifiable external state: the agent does not get to decide *if*, only to execute *when*.
+
+Under the hood, a depositor locks ADA in an on-chain Aiken escrow with one rule: release to the beneficiary when ADA/USD crosses a trigger. An off-chain Python agent watches Charli3's ODV feed, builds the ODV transaction, and submits a settlement transaction in the same block. The Aiken validator refuses to release the payout unless Charli3's oracle UTXO, attached as a reference input, proves the trigger is satisfied. Remove the oracle and the release never fires.
 
 ## Why it matters
 
-Cardano has swaps. It does not yet have a settled, atomic, price-conditional payment rail. This project ships that rail. The same validator supports automated remittance at spot, invoice settlement at today's FX, DAO treasury rebalancing, and automated liquidation for under-collateralized positions. Every product on top of the rail inherits the same property: no custodian, no second signer, no off-chain promise.
+Cardano has swap demos and escrow demos. It does not yet have an agent-grade settlement rail: an autonomous service a principal trusts to pay at the right moment because the on-chain script will only let it pay when the external condition is true. That rail is the missing piece for DAO treasury rebalancing, subscription auto-pay, milestone payout bots, and automated liquidation. Every product on top of the rail inherits the same property: no custodian, no second signer, no off-chain promise.
 
 ## How the oracle is used
 
