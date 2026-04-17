@@ -109,6 +109,21 @@ Full `OracleDatum` union includes `AggState`, `OracleSettingsVariant`, and
 `RewardAccountVariant`. Only `AggState` carries price data. Filter by the
 `43334153` asset name when fetching the reference UTxO (see below).
 
+### Naming map: Python SDK vs Aiken vs Charli3 docs
+
+Same wire format, three different names. Verified with live CBOR decode.
+
+| Layer / wire CBOR     | Python SDK class        | Aiken (`contracts/lib/oracle.ak`) | docs.charli3.io       |
+| --------------------- | ----------------------- | --------------------------------- | --------------------- |
+| outer `Constr 0`      | `AggState`              | `GenericData::AggState`           | `GenericData`         |
+| inner `Constr 2`      | `PriceData`             | `PriceData::PriceMap`             | `PriceData`           |
+| map `{0,1,2}->Int`    | `price_map: dict`       | `price_map: Pairs<Int, Int>`      | `price_map`           |
+
+`AggState.from_cbor(cbor)` and `expect g: GenericData = data` both decode
+the same byte sequence. The `Reserved*` placeholder constructors in the
+Aiken `PriceData` exist to align the constructor index with Python's
+`CONSTR_ID = 2`; do not rename them.
+
 ## Oracle identifiers (ADA/USD Preprod)
 
 Take these verbatim when you write the Aiken validator or the frontend
