@@ -276,3 +276,119 @@ A callable `request_fresh_price()` that wraps the ODV tx submission and
 settlement release into a single user-triggered flow, returning the
 price, timestamp, tx hash pair. Shape to be delivered as
 `offchain/src/oracle.py` by end of Saturday.
+
+## Day 2 update (2026-04-18, work started 2026-04-17 evening UTC)
+
+### Oracle consumption library
+
+`oracle-client/src/oracle_client/settlement.py` wraps the Charli3 SDK for
+the rest of the project. The package is importable as `oracle_client`
+once installed into the venv with `pip install -e oracle-client/`.
+
+Public surface:
+
+| Callable                        | What it does                                                                 |
+|---------------------------------|------------------------------------------------------------------------------|
+| `request_fresh_price(config)`   | Hit nodes, aggregate, return `FreshPrice` (no tx). Good for health + UI.     |
+| `submit_odv_tx(config, wait)`   | Do the above and submit the ODV aggregation tx on Preprod. Returns tx hash. |
+| `build_and_submit_release(...)` | Build + submit the escrow-release dApp tx referencing the fresh oracle UTxO. |
+| `decode_oracle_datum_cbor(hex)` | Pure decode of an inline-datum CBOR into `FreshPrice`. No network.           |
+| `load_settings(config)`         | Convenience loader for the YAML into typed SDK config objects.               |
+
+`FreshPrice` is a frozen dataclass with fields `price`, `timestamp_ms`,
+`expiry_ms`, `node_feeds_count`, `median_six_dp`, and an `is_fresh`
+property that compares `timestamp_ms <= now <= expiry_ms`. Verified
+live against Preprod at commit of this note: price 254050 (6 dp 0.254050
+USD/ADA), nodes 2/2, is_fresh True.
+
+### Scripted ODV push for the live demo
+
+`scripts/demo_push.py` is what the DemoDirector runs on the presenter
+laptop during the live slot. It does not fake a price. Charli3 nodes
+only sign real feeds, and falsifying one would disqualify the submission.
+Instead, the rule is armed just below (or just above) the current live
+price, and the script pulls a fresh real feed that naturally crosses it.
+
+Usage:
+
+```
+# Dry run (no tx, no wallet needed)
+python oracle-client/scripts/demo_push.py --trigger-price 250000 --direction above --dry-run
+
+# Live run (submits ODV tx on Preprod, requires funded WALLET_MNEMONIC)
+WALLET_MNEMONIC='word1 ... word24' \
+python oracle-client/scripts/demo_push.py --trigger-price 250000 --direction above
+```
+
+Exit codes:
+
+| Code | Meaning                                                                |
+|------|------------------------------------------------------------------------|
+| 0    | Fresh feed crosses the trigger (dry run) or ODV tx submitted under 15s |
+| 2    | WALLET_MNEMONIC missing (live run only)                                |
+| 3    | Runtime error (node outage, Ogmios/Kupo timeout, ...)                  |
+| 4    | Fresh feed does NOT cross the trigger. Re-arm on the other side.       |
+| 5    | Tx submitted but total latency exceeded 15s                            |
+
+Dry-run latency measured on Preprod 2026-04-17:
+
+| Run | Poll latency | Notes                          |
+|-----|--------------|--------------------------------|
+| 1   | 2.10 s       | cold (new SDK process)         |
+| 2   | 0.80 s       | warm (back-to-back)            |
+| 3   | ~0.30 s      | steady state from in-process   |
+
+Live submission latency (pending funded wallet) is budgeted for ~6 to 10
+seconds wall time (SDK aggregation + sign + submit + confirmation poll).
+This keeps the demo inside the 15 s envelope cited in the storyboard.
+
+### Blockfrost Preprod fallback
+
+If the public Charli3 Preprod Ogmios/Kupo instance is down or slow:
+
+1. Grab a Blockfrost **Preprod** project id from
+   https://blockfrost.io (free tier). Keep it out of git.
+2. Edit `oracle-client/configs/ada-usd-preprod.yml` so the `network`
+   block uses the Blockfrost variant the Charli3 SDK exposes:
+
+   ```yaml
+   network:
+     network: "testnet"
+     blockfrost:
+       project_id: "preprod..."
+   ```
+
+3. Unset or leave the `ogmios_kupo` block; the SDK's `create_chain_query`
+   picks the first match (Blockfrost is checked before Ogmios).
+
+4. Re-run `poll_price.py` and `scripts/demo_push.py --dry-run` to
+   confirm. Latency will be higher (Blockfrost adds ~200 to 500 ms per
+   call), but the full flow still fits in the 15 s demo envelope as long
+   as we keep poll+submit sequential.
+
+Only fall back if the public instance is confirmed down. Do not hedge
+silently. The CTO and the DemoDirector both need to know if we are on
+the fallback path because backup-video timing was tuned against the
+Charli3 instance.
+
+### Wallet funding (blocker for end-to-end submission)
+
+Everything submit-side depends on `WALLET_MNEMONIC` pointing at a
+Preprod wallet with at least 20 tADA. Today it is the BIP-39 zero-ADA
+test vector, which is enough for the read and build-only paths but not
+for signing and submitting.
+
+Steps:
+
+1. Generate a new 24-word mnemonic on a clean environment (no reuse).
+2. Derive the base address (path `m/1852'/1815'/0'/0/0`) and request
+   tADA from https://docs.cardano.org/cardano-testnets/tools/faucet/.
+3. Store the mnemonic in the Paperclip secrets provider under a name
+   like `charli3_preprod_wallet`. Never commit it.
+4. Export it into the shell before running `scripts/submit_odv.py` or
+   `scripts/demo_push.py`. The scripts refuse to run if the env var is
+   missing or still points at the zero-ADA test vector.
+
+The CTO is the owner of that funding step. Blocker filed on CHA-18 if
+it is not ready by Saturday 12:00 Bangkok so we have a buffer for the
+three end-to-end timing-window tests.
