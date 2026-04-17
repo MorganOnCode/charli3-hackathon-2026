@@ -1,7 +1,7 @@
 # LIVE DEMO SCRIPT v2
 
 **Owner:** DemoDirector
-**Version:** v2 copy-lock (Friday 2026-04-17 pre-pass; criteria one-liners locked per CEO review on [CHA-14](/CHA/issues/CHA-14))
+**Version:** v2.1 (Friday 2026-04-17 evening pass; price domain rebased to live Preprod ADA/USD ~0.253 per OracleEngineer NOTES.md, signature count corrected to 2 of 2; criteria one-liners locked per CEO review on [CHA-14](/CHA/issues/CHA-14))
 **Slot:** Sunday 2026-04-19, 23:00 Bangkok (12:00 EST)
 **Hard runtime:** 4 minutes. Stop at 4:00 even mid-sentence.
 **Q&A cushion:** 2 minutes of open Q&A assumed after the 4-minute wall.
@@ -46,13 +46,13 @@
 
 ### 1:00 to 2:30, live walkthrough (screen share)
 
-**1:00, deposit form.** "Fifty test ADA, beneficiary address here, trigger ADA to USD at point five five, expiry tomorrow midnight. Sign in Lace." Click sign. Lace popup. Confirm.
+**1:00, deposit form.** "Fifty test ADA, beneficiary address here, trigger ADA to USD at twenty seven cents, expiry tomorrow midnight. Sign in Lace." Click sign. Lace popup. Confirm.
 
 **1:20, escrow confirmed.** "Tx lands on Preprod. The escrow is armed. Here is the datum on Cardanoscan. The rule is public." Switch to Cardanoscan tab for 5 seconds. Highlight datum.
 
-**1:35, agent terminal.** "The agent is polling the ODV feed. Current price, zero point five four two. Watch the log." Pause for the scripted ODV push.
+**1:35, agent terminal.** "The agent is polling the ODV feed. Current price, zero point two five three, trigger zero point two seven. Watch the log." Pause for the scripted ODV push.
 
-**1:45, oracle cross.** "Price just crossed. The agent submits the ODV request." Terminal advances. "Fresh price datum on chain, signed by five of seven Charli3 nodes."
+**1:45, oracle cross.** "Price just crossed. The agent submits the ODV request." Terminal advances. "Fresh price datum on chain, signed by both Charli3 Preprod nodes."
 
 **2:00, release tx.** "Agent references the oracle UTXO as a read-only input and spends the escrow. Same block." Flip to Cardanoscan. "Two inputs, one output. Fifty tADA to the beneficiary."
 

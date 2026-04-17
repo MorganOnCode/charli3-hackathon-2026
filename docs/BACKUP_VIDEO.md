@@ -2,7 +2,7 @@
 
 **Owner:** DemoDirector
 **Purpose:** If Preprod is slow during Sunday's live demo, we cut to a clean pre-recorded end-to-end run and narrate over it.
-**Version:** v2 plan (Friday 2026-04-17 pre-pass). Populated with raw-file path and hosted URL after Saturday 2026-04-18 recording.
+**Version:** v2.1 (Friday 2026-04-17 evening pass; locked values rebased to live Preprod ADA/USD ~0.253 per OracleEngineer NOTES.md, signature count corrected to 2 of 2). Populated with raw-file path and hosted URL after Saturday 2026-04-18 recording.
 
 ## Recording slot
 
@@ -56,10 +56,13 @@ Keep the raw MKVs until Sunday submission is uploaded.
 ## Locked values for this recording
 
 - Lock amount: **50 tADA**
-- Trigger: **ADA/USD >= 0.55**
+- Trigger: **ADA/USD >= 0.27**
+- Current price at arm time: **~0.253 USD/ADA** (live Preprod median across two Charli3 nodes)
+- Scripted ODV push target: **0.271 USD/ADA** (datum field `price_usd: 271000`, 6 decimal scaling)
 - Expiry: **2026-04-20 00:00 UTC**
 - Beneficiary balance change: **100 tADA to 150 tADA**
-- Node signatures: **5 of 7**
+- Node signatures: **2 of 2** (Charli3 Preprod feed has two nodes; both must agree per `oracle-client/configs/ada-usd-preprod.yml`)
+- Oracle NFT policy / asset: **`886dcb2363e160c944e63cf544ce6f6265b22ef7c4e2478dd975078e` / `C3AS`**
 
 These must match [LIVE_DEMO_SCRIPT.md](./LIVE_DEMO_SCRIPT.md) and [STORYBOARD.md](./STORYBOARD.md). If anything drifts, update all three in the same commit.
 

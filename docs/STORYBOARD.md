@@ -1,7 +1,7 @@
 # STORYBOARD: Charli3 Hackathon Submission Video
 
 **Owner:** DemoDirector
-**Version:** v2 copy-lock (Friday 2026-04-17 pre-pass; real Preprod values substituted Saturday 2026-04-18 after dependency handoff)
+**Version:** v2.1 (Friday 2026-04-17 evening pass; price domain rebased to live Preprod ADA/USD ~0.253 per OracleEngineer NOTES.md, signature count corrected to 2 of 2 per the live feed config; real tx hashes and beneficiary balances still pending Saturday handoff)
 **Target length:** 2 minutes 30 seconds
 **Submission deadline:** Sunday 2026-04-19, 22:00 Bangkok (internal record-by 16:00)
 **Distribution:** YouTube unlisted link in the submission form, mirror on Loom as a fallback
@@ -42,8 +42,8 @@ Every moment must show a screen, a voiceover line, and a visible proof (transact
 
 ### F4. Deposit screen (0:40 to 0:55, 15s)
 
-- **Screen:** Browser at `localhost:5173` showing the Trigger web app. Wallet connected (Lace on Preprod), tADA balance visible. Deposit form filled in: beneficiary address `addr_test1...`, amount `50 tADA`, trigger `ADA/USD >= 0.55`, expiry `2026-04-20 00:00 UTC`. Mouse hovers the "Lock funds" button.
-- **Voiceover:** "Here is the live app on Cardano Preprod. I am locking fifty test ADA to pay this beneficiary, but only if the ADA to USD price crosses fifty five cents before tomorrow midnight."
+- **Screen:** Browser at `localhost:5173` showing the Trigger web app. Wallet connected (Lace on Preprod), tADA balance visible. Deposit form filled in: beneficiary address `addr_test1...`, amount `50 tADA`, trigger `ADA/USD >= 0.27`, expiry `2026-04-20 00:00 UTC`. Mouse hovers the "Lock funds" button.
+- **Voiceover:** "Here is the live app on Cardano Preprod. I am locking fifty test ADA to pay this beneficiary, but only if the ADA to USD price crosses twenty seven cents before tomorrow midnight."
 - **Visible proof:** the form, the real Preprod address prefix `addr_test1`, the Lace network pill reading "Preprod".
 
 ### F5. Deposit tx submission (0:55 to 1:05, 10s)
@@ -54,20 +54,20 @@ Every moment must show a screen, a voiceover line, and a visible proof (transact
 
 ### F6. Escrow on chain (1:05 to 1:15, 10s)
 
-- **Screen:** Cut to Cardanoscan Preprod. URL visible, showing the escrow tx. Zoom in on the datum field with the decoded rule (`trigger_price: 550000, direction: "above", beneficiary: addr_test1...`).
+- **Screen:** Cut to Cardanoscan Preprod. URL visible, showing the escrow tx. Zoom in on the datum field with the decoded rule (`trigger_price: 270000, direction: "above", beneficiary: addr_test1...`).
 - **Voiceover:** "Cardanoscan confirms it. The rule is public, auditable, and immutable until the condition is met."
 - **Visible proof:** full Preprod URL, datum bytes with decoded overlay we render in post.
 
 ### F7. Oracle request fires (1:15 to 1:30, 15s)
 
-- **Screen:** Terminal split with agent logs on the left, live price ticker on the right sourced from the ODV feed. Log line: `[agent] rule not yet satisfied, current 0.542, trigger 0.55`. Then the price ticks to `0.551`. Log flips to `[agent] condition met, submitting ODV request tx`.
-- **Voiceover:** "The agent is polling. The price is climbing. At fifty five and a tenth cents, it crosses. The agent submits a Charli3 ODV request to mint a fresh price datum."
-- **Visible proof:** real price from `https://oracle.charli3.io` feed, agent log line timestamps in UTC.
+- **Screen:** Terminal split with agent logs on the left, live price ticker on the right sourced from the ODV feed. Log line: `[agent] rule not yet satisfied, current 0.253, trigger 0.27`. Then the scripted ODV push lands and the price ticks to `0.271`. Log flips to `[agent] condition met, submitting ODV request tx`.
+- **Voiceover:** "The agent is polling. The price climbs. At twenty seven cents it crosses. The agent submits a Charli3 ODV request to mint a fresh price datum."
+- **Visible proof:** real price from the Preprod ODV feed (median across two Charli3 nodes per `oracle-client/configs/ada-usd-preprod.yml`), agent log line timestamps in UTC.
 
 ### F8. ODV transaction on chain (1:30 to 1:45, 15s)
 
-- **Screen:** Cardanoscan Preprod again. The ODV consume transaction. Highlight the oracle feed UTXO output with its fresh datum. Decoded overlay shows `price_usd: 551000, timestamp: 2026-04-19T15:02:11Z, node_signatures: 5 of 7`.
-- **Voiceover:** "Charli3's node network signs the price on demand. Five of seven node signatures, timestamped, on chain. This is the oracle moment."
+- **Screen:** Cardanoscan Preprod again. The ODV consume transaction. Highlight the oracle feed UTXO output with its fresh datum. Decoded overlay shows `price_usd: 271000, timestamp: 2026-04-19T15:02:11Z, node_signatures: 2 of 2`. Asset name overlay reads `C3AS` under the policy id `886dcb...078e`.
+- **Voiceover:** "Charli3's node network signs the price on demand. Both Preprod nodes signed, timestamped, on chain. This is the oracle moment."
 - **Visible proof:** ODV tx hash, decoded datum, signature count. Label "Charli3 ODV feed UTXO" with an arrow in post.
 
 ### F9. Release transaction builds (1:45 to 1:55, 10s)
@@ -115,7 +115,7 @@ These tokens are intentionally faked in v2 and will be substituted once the code
 |---|---|---|---|
 | `addr_test1...` beneficiary address | F4, F6 | FrontendDev (CHA-12) wallet panel + OracleEngineer settlement script | Saturday 2026-04-18 18:00 Bangkok |
 | Deposit tx hash `9f3a...c1` | F5, F6 | SmartContractDev escrow release tx on Preprod | Saturday 2026-04-18 18:00 Bangkok |
-| ODV tx hash and datum `price_usd: 551000` | F7, F8 | OracleEngineer scripted ODV push | Saturday 2026-04-18 19:00 Bangkok |
+| ODV tx hash and datum `price_usd: 271000` | F7, F8 | OracleEngineer scripted ODV push | Saturday 2026-04-18 19:00 Bangkok |
 | Release tx hash `7b2e...88` | F9, F10 | SmartContractDev + OracleEngineer joint run | Saturday 2026-04-18 18:00 Bangkok |
 | Beneficiary balance 100 to 150 tADA | F10 | FrontendDev second Lace wallet screenshot | Saturday 2026-04-18 18:00 Bangkok |
 
