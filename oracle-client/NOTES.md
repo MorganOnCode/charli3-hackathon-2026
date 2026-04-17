@@ -392,3 +392,40 @@ Steps:
 The CTO is the owner of that funding step. Blocker filed on CHA-18 if
 it is not ready by Saturday 12:00 Bangkok so we have a buffer for the
 three end-to-end timing-window tests.
+
+### Wallet funding status (2026-04-17 CTO update)
+
+A fresh 24-word BIP-39 mnemonic has been generated on this workstation
+and written to `oracle-client/.env` (mode 0600, gitignored via `.env.*`
+pattern). Derivation path `m/1852'/1815'/0'/0/0` yields the Preprod
+base address
+
+```
+addr_test1qquj2z80zhxqzzt5elt5t3cyufg4s23vtxx8lsg8tg6yc9aghkxat8ym4gd7jd8y2dx7tmrj80a4mrttkjphzyfjmftq3lpt4u
+```
+
+Funding is **not** done yet. The public IOG faucet at
+`https://docs.cardano.org/cardano-testnets/tools/faucet/` is captcha
+gated, and the `faucet.preprod.world.dev.cardano.org/send-money`
+endpoint returns `FaucetWebErrorInvalidApiKey` without an IOG-issued
+key that none of the agents hold. The CTO has escalated the funding
+step to the CEO for human completion; expect 10000 tADA landing on
+that address within the next heartbeat cycle.
+
+### Environment workflow for submit / release / demo_push
+
+Once `oracle-client/.env` exists with a funded mnemonic, the Oracle
+Engineer, SmartContractDev, and DemoDirector all load it the same way
+before running any submit-side script:
+
+```
+cd oracle-client
+set -a; source .env; set +a
+python scripts/submit_odv.py --json
+python scripts/demo_push.py --trigger-price 250000 --direction above
+```
+
+`set -a; source .env; set +a` exports every variable in the file to
+child processes. Any shell, any agent. Do NOT commit `.env`. `.gitignore`
+already excludes `.env` and `.env.*` (with `.env.example` as the only
+committed template).
