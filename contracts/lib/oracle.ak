@@ -81,3 +81,52 @@ test read_extracts_three_fields() {
     reading.expiry == 200,
   }
 }
+
+/// Exact values decoded from the CHA-10 canonical inline datum CBOR:
+///
+///   d8799fd87b9fa3001a0003f194011b0000019d98de0788021b0000019d98e72f48ffff
+///
+/// (AggState{PriceData{ {0: 258452, 1: 1776386294152, 2: 1776386725192} }}).
+/// Asserts that the Aiken constructor indices (GenericData=0, PriceData=2)
+/// and the price_map integer keys line up with what Charli3 emits on chain.
+test read_matches_cha10_canonical_datum() {
+  let datum =
+    AggState {
+      price_data: PriceMap {
+        price_map: [
+          Pair(price_key, 258_452),
+          Pair(timestamp_key, 1_776_386_294_152),
+          Pair(expiry_key, 1_776_386_725_192),
+        ],
+      },
+    }
+  let reading = read(datum)
+  and {
+    reading.price == 258_452,
+    reading.timestamp == 1_776_386_294_152,
+    reading.expiry == 1_776_386_725_192,
+  }
+}
+
+/// Second live-feed sample captured during [CHA-18](../../) Day 2 submission
+/// dry runs (price=254050, the median across two Preprod oracle nodes). Same
+/// PriceData shape, different price point. Guards against any drift that
+/// would only show up once the median lands in a narrower band.
+test read_matches_cha18_live_median() {
+  let datum =
+    AggState {
+      price_data: PriceMap {
+        price_map: [
+          Pair(price_key, 254_050),
+          Pair(timestamp_key, 1_776_400_000_000),
+          Pair(expiry_key, 1_776_400_300_000),
+        ],
+      },
+    }
+  let reading = read_data(datum)
+  and {
+    reading.price == 254_050,
+    reading.timestamp == 1_776_400_000_000,
+    reading.expiry == 1_776_400_300_000,
+  }
+}
