@@ -1,163 +1,197 @@
-# STORYBOARD: Charli3 Hackathon Submission Video
+# STORYBOARD: Charli3 Hackathon Submission Video (v3 Dual-Track)
 
 **Owner:** DemoDirector
-**Version:** v2.1 (Friday 2026-04-17 evening pass; price domain rebased to live Preprod ADA/USD ~0.253 per OracleEngineer NOTES.md, signature count corrected to 2 of 2 per the live feed config; real tx hashes and beneficiary balances still pending Saturday handoff)
+**Version:** v3.0 (Friday 2026-04-17 evening Bangkok). Replaces v2.3 end to end after the Human Founder picked Option B on [CHA-23](/CHA/issues/CHA-23). Library `charli3-settlement` is the product. ConditionalPay is the reference dApp that proves it. Code-pane API below is now aligned to the extracted package surface under `packages/charli3-settlement/`. Positioning line and narrative source are aligned to ProductStrategist deliverables on [CHA-25](/CHA/issues/CHA-25).
 **Target length:** 2 minutes 30 seconds
-**Submission deadline:** Sunday 2026-04-19, 22:00 Bangkok (internal record-by 16:00)
-**Distribution:** YouTube unlisted link in the submission form, mirror on Loom as a fallback
-**Locked pitch phrase (from PITCH.md, used once in F1):** `price-conditional settlement on Cardano, powered by Charli3 ODV`
+**Submission deadline:** Sunday 2026-04-19, 22:00 Bangkok (internal record-by 10:00 Bangkok, founder sleep protected)
+**Distribution:** YouTube unlisted in the submission form, Loom mirror as fallback
+**Locked positioning line:** `Atomic price-conditional settlement on Cardano, in one Charli3-powered import.`
 
-## Product in one line
+## Dual-track thesis in one line
 
-A price-conditional settlement agent on Cardano Preprod. A user locks funds with a trigger rule. A Python agent plus Aiken validator releases to the beneficiary atomically when the Charli3 ODV pull oracle says the condition is satisfied.
+Every Cardano team building an agent that must pay on verifiable state writes the same three things: an Aiken validator that gates on a Charli3 reference input, a Python client that composes ODV plus spend in one transaction, and a wallet glue layer. We extracted those three pieces into `charli3-settlement` under MIT. ConditionalPay is the 300-line reference dApp that proves the library. Fork the library, ship your own settlement flow on Preprod in under an hour.
 
-## The three required moments
+## The five required moments
 
-1. **DEPOSIT.** User locks funds with a trigger rule.
-2. **PRICE CROSS.** Oracle ODV transaction fires, price crosses the trigger.
-3. **RELEASE.** Funds pay the beneficiary in the same block as the oracle cross.
+1. **BUILDER PAIN.** Open on the user we are helping: a Cardano team blocked on oracle integration plumbing.
+2. **LIBRARY IMPORT.** One import block, one ODV submit call, one consumer callback. Code on screen.
+3. **SECOND DAPP SCAFFOLD.** A tiny second app (`PriceAlert`) built on the same library in under 60 seconds of footage, showing the library is reusable not one-off.
+4. **CONDITIONALPAY AS PROOF.** The full reference dApp settles end to end on Preprod, using the same library the viewer just saw imported.
+5. **DUAL-TRACK CLOSE.** Library is the Oracle Tooling submission. ConditionalPay is the Real World Settlements submission. Same repo, MIT.
 
-Every moment must show a screen, a voiceover line, and a visible proof (transaction hash on Cardanoscan Preprod, a balance change, or the oracle datum value).
+Every moment must show a screen, a voiceover line, and a visible proof (code snippet, transaction hash on Cardanoscan Preprod, a balance change, or the oracle datum value).
 
-## Frame-by-frame
+## Frame-by-frame (12 frames, 2:30 total)
 
-### F1. Title card and hook (0:00 to 0:10, 10s)
+### F1. Hook: builder pain (0:00 to 0:15, 15s)
 
-- **Screen:** Black card. Project name "Trigger" in large type. Under it: "Price-conditional settlement on Cardano, powered by Charli3 ODV". Preprod badge in the corner.
-- **Voiceover:** "What if a payment could wait for the right price, then settle itself, on chain, in a single block?"
-- **Visible proof:** none yet, this is the hook.
-- **Production notes:** Static frame. Keep music quiet. Cut cleanly to F2.
+- **Screen:** Dark editor window with a half-written Aiken validator and a pile of TODOs: `// TODO: decode Charli3 PriceData CBOR`, `// TODO: reference input semantics`, `// TODO: ODV mint + release in one tx`. Cursor blinking.
+- **Voiceover:** "You are a Cardano team. You want an on-chain agent that only pays when the oracle proves a condition. You open your editor and realise you are about to write the same three hundred lines every oracle-gated dApp on Cardano has written before you."
+- **Visible proof:** the TODO list is the proof of the pain.
+- **Production note:** open on the user and the pain, not the mechanism. Founder rule.
 
-### F2. The problem (0:10 to 0:25, 15s)
+### F2. The promise (0:15 to 0:30, 15s)
 
-- **Screen:** Split screen. Left side: a stale invoice PDF with "Pay at spot rate" typed on it. Right side: a candlestick chart with a horizontal dashed trigger line and two candles crossing it.
-- **Voiceover:** "Real world settlement has a problem. Prices move. Humans do not. Today a treasury operator either accepts slippage, or they babysit a terminal, or they trust a centralized service to pull the trigger."
-- **Visible proof:** none. This is the setup.
+- **Screen:** Cut to a clean README header. Title: `charli3-settlement`. Tagline under it: `Atomic price-conditional settlement on Cardano, in one Charli3-powered import.` Three-line install block visible.
+- **Voiceover:** "We extracted those three hundred lines into one library. `charli3-settlement`. Import it, request a fresh price, or submit ODV and hand your own callback a ready-to-build oracle reference input."
+- **Visible proof:** the README itself and the install command.
 
-### F3. The thesis (0:25 to 0:40, 15s)
+### F3. Fork in five minutes: the import moment (0:30 to 0:55, 25s)
 
-- **Screen:** Diagram. Three boxes left to right: "Escrow UTXO (Aiken)" pointing to "Charli3 ODV pull oracle" pointing to "Python settlement agent" pointing back to the escrow with a "Release" arrow. Label each arrow with a Cardano tx icon.
-- **Voiceover:** "We put the rule on chain. The oracle is load bearing. An ODV request writes a fresh price datum, and our validator releases the funds only if that datum crosses the rule. No human in the loop, no custodial middleman."
-- **Visible proof:** diagram is the proof of concept shape, named arrows.
+- **Screen:** Editor split left-right.
+  - Left pane, Python:
+    ```python
+    from charli3_settlement import (
+        build_with_oracle_reference,
+        submit_odv_tx,
+    )
 
-### F4. Deposit screen (0:40 to 0:55, 15s)
+    submission = await submit_odv_tx("configs/ada-usd-preprod.yml")
+    release_tx_hash = await build_with_oracle_reference(
+        submission=submission,
+        consumer_fn=spend_conditionalpay,
+        config_path="configs/ada-usd-preprod.yml",
+    )
+    ```
+  - Right pane, Aiken:
+    ```gleam
+    use charli3_settlement/oracle.{find_oracle_reading, reading_is_live}
 
-- **Screen:** Browser at `localhost:5173` showing the Trigger web app. Wallet connected (Lace on Preprod), tADA balance visible. Deposit form filled in: beneficiary address `addr_test1...`, amount `50 tADA`, trigger `ADA/USD >= 0.27`, expiry `2026-04-20 00:00 UTC`. Mouse hovers the "Lock funds" button.
-- **Voiceover:** "Here is the live app on Cardano Preprod. I am locking fifty test ADA to pay this beneficiary, but only if the ADA to USD price crosses twenty seven cents before tomorrow midnight."
-- **Visible proof:** the form, the real Preprod address prefix `addr_test1`, the Lace network pill reading "Preprod".
+    validator escrow(oracle_policy: PolicyId, oracle_asset: AssetName) {
+      spend(datum: Option<EscrowDatum>, _redeemer, _own_ref, self) {
+        expect Some(d) = datum
+        expect Some(reading) = find_oracle_reading(self, oracle_policy, oracle_asset)
+        reading_is_live(reading, self.validity_range, d.max_staleness_ms)
+          && reading.price >= d.trigger_price
+      }
+    }
+    ```
+- **Voiceover:** "One Python import block. One Aiken import. Off chain you submit ODV and hand your dApp a ready-built oracle reference context. On chain you read the canonical oracle UTxO by NFT and gate release on freshness and price. No custom CBOR decode, no hand-rolled reference-input math."
+- **Visible proof:** both code blocks on screen, real imports, the exact public API from the library.
+- **Dependency note:** signatures above now match the extracted package README and examples under `packages/charli3-settlement/`. Keep the panes synchronized with those files before rolling tape.
 
-### F5. Deposit tx submission (0:55 to 1:05, 10s)
+### F4. Second app scaffolded live (0:55 to 1:15, 20s)
 
-- **Screen:** Lace confirmation popup listing the 50 tADA output going to the escrow script address, with a datum hash preview. Click Confirm. Toast appears: "Escrow created. Tx: `9f3a...c1`".
-- **Voiceover:** "The deposit lands in an Aiken escrow. The rule travels with the funds as the datum."
-- **Visible proof:** signed Preprod tx, Lace popup, toast with truncated tx hash.
+- **Screen:** Terminal on the left, editor on the right.
+  - Terminal: `cd packages/charli3-settlement/python && python -m charli3_settlement_examples.price_alert --threshold 250000 --direction above` landing visibly. Cut to the editor showing `price_alert.py` with a tiny script that imports `request_fresh_price` and checks a threshold.
+  - Run the script. Terminal prints: `CROSSED price=256199 threshold=250000 direction=above timestamp_ms=...`
+- **Voiceover:** "Different app, same package. This one is a price alert instead of a settlement rail, but it is the same import path and the same oracle read. Another builder can fork this in minutes."
+- **Visible proof:** the second app imports `charli3_settlement`, runs immediately, and prints a real threshold result. Library reusability shown on camera.
 
-### F6. Escrow on chain (1:05 to 1:15, 10s)
+### F5. Transition to the reference dApp (1:15 to 1:25, 10s)
 
-- **Screen:** Cut to Cardanoscan Preprod. URL visible, showing the escrow tx. Zoom in on the datum field with the decoded rule (`trigger_price: 270000, direction: "above", beneficiary: addr_test1...`).
-- **Voiceover:** "Cardanoscan confirms it. The rule is public, auditable, and immutable until the condition is met."
-- **Visible proof:** full Preprod URL, datum bytes with decoded overlay we render in post.
+- **Screen:** Cut card. Title: "And here is what it looks like in production." Beneath the title: `ConditionalPay: the reference dApp for charli3-settlement`.
+- **Voiceover:** "We also built the flagship dApp on top of the same library. ConditionalPay. Watch it settle."
+- **Visible proof:** the transition card. No chain action yet.
 
-### F7. Oracle request fires (1:15 to 1:30, 15s)
+### F6. ConditionalPay agent commit on chain (1:25 to 1:40, 15s)
 
-- **Screen:** Terminal split with agent logs on the left, live price ticker on the right sourced from the ODV feed. Log line: `[agent] rule not yet satisfied, current 0.253, trigger 0.27`. Then the scripted ODV push lands and the price ticks to `0.271`. Log flips to `[agent] condition met, submitting ODV request tx`.
-- **Voiceover:** "The agent is polling. The price climbs. At twenty seven cents it crosses. The agent submits a Charli3 ODV request to mint a fresh price datum."
-- **Visible proof:** real price from the Preprod ODV feed (median across two Charli3 nodes per `oracle-client/configs/ada-usd-preprod.yml`), agent log line timestamps in UTC.
+- **Screen:** ConditionalPay web app at `localhost:5173` on Preprod. Wallet connected in Lace. Commit form filled: beneficiary `addr_test1...`, amount `50 tADA`, trigger `ADA/USD >= 0.27`, expiry `2026-04-20`. Click Commit. Lace popup signs. Toast: `Agent committed. Tx: 9f3a...c1`.
+- **Voiceover:** "The operator commits funds into the rail. The library builds the escrow transaction. Fifty test ADA lands on an Aiken validator the library shipped. The rule is the datum."
+- **Visible proof:** Preprod network pill, real `addr_test1` prefix, truncated tx hash in toast.
 
-### F8. ODV transaction on chain (1:30 to 1:45, 15s)
+### F7. Escrow datum on Cardanoscan (1:40 to 1:50, 10s)
 
-- **Screen:** Cardanoscan Preprod again. The ODV consume transaction. Highlight the oracle feed UTXO output with its fresh datum. Decoded overlay shows `price_usd: <live value, e.g. 271000>, timestamp: <POSIX ms>, node_signatures: 2 of 2`. Asset name overlay reads `C3AS` under the policy id `886dcb...078e`. Whatever value the demo-push script aggregates at run time is the value we render in post; do not pre-bake `271000` into the lower-third graphic.
-- **Voiceover:** "Charli3's node network signs the price on demand. Both Preprod nodes signed, timestamped, on chain. This is the oracle moment."
-- **Visible proof:** ODV tx hash, decoded datum, signature count. Label "Charli3 ODV feed UTXO" with an arrow in post.
+- **Screen:** Cardanoscan Preprod on the escrow tx. Datum expanded, decoded overlay: `trigger_price: 270000, direction: above, beneficiary: addr_test1...`. Label arrow: "Same trigger fields the validator checks on-chain."
+- **Voiceover:** "Public, auditable, and shaped by the library's own types. The agent cannot pay anyone else and it cannot pay at the wrong price."
+- **Visible proof:** Cardanoscan URL, decoded datum bytes.
 
-### F9. Release transaction builds (1:45 to 1:55, 10s)
+### F8. Oracle proves the rule (1:50 to 2:05, 15s)
 
-- **Screen:** Agent log advancing: `[agent] oracle utxo confirmed, building release tx`, `[agent] reference input = ODV feed utxo`, `[agent] submitted release tx 7b2e...88`. Web app flips the escrow card state from "Armed" to "Settling".
-- **Voiceover:** "The agent references the oracle UTXO as a read-only input, then spends the escrow in the same block."
-- **Visible proof:** release tx hash in the agent log, UI state change.
+- **Screen:** Split: left is the agent's terminal log from the library, right is the live ODV ticker.
+  - Log: `[charli3-settlement] current 0.2562, trigger 0.2700, not armed`.
+  - Scripted ODV push lands. Ticker rises to `0.2710`.
+  - Log flips: `[charli3-settlement] rule satisfied. submitting ODV request tx.`
+  - Log: `[charli3-settlement] ODV tx e488...1b confirmed. oracle feed utxo e488...1b#1.`
+- **Voiceover:** "The library polls the feed. At twenty seven cents the rule proves. The library submits the Charli3 ODV transaction. Both Preprod nodes sign. The price lands on chain."
+- **Visible proof:** real ODV tx hash in the log, real price from the Preprod ODV feed, signature count `2 of 2`.
 
-### F10. Release on chain, beneficiary paid (1:55 to 2:10, 15s)
+### F9. Release transaction (2:05 to 2:15, 10s)
 
-- **Screen:** Cardanoscan Preprod release tx. Show two inputs (escrow UTXO plus reference to ODV feed UTXO) and one output of 50 tADA to the beneficiary address. Cut to beneficiary's Lace wallet: balance before `100 tADA`, balance after `150 tADA`. Green arrow overlay.
-- **Voiceover:** "Same block. The escrow closes. The beneficiary wallet jumps by fifty test ADA. No human signed this release."
-- **Visible proof:** release tx inputs and outputs on Cardanoscan, balance change screenshot in Lace before and after.
+- **Screen:** Agent log advances: `[charli3-settlement] attaching oracle utxo as reference input`, `[charli3-settlement] spending escrow`, `[charli3-settlement] release tx 7b2e...88 submitted`. ConditionalPay card flips from `Armed` to `Settling` to `Settled`.
+- **Voiceover:** "The library attaches the oracle UTXO as a reference input and spends the escrow in the same block. One transaction carries the oracle proof and the payment."
+- **Visible proof:** release tx hash in the log, UI state machine visibly advancing.
 
-### F11. What this enables (2:10 to 2:25, 15s)
+### F10. Beneficiary paid (2:15 to 2:25, 10s)
 
-- **Screen:** Three cards fade in. Card 1: "Remittance at spot" with a globe icon. Card 2: "Automated liquidation" with a chart icon. Card 3: "DAO rebalancing" with a vault icon. Each card names the same primitive: "Escrow + ODV trigger".
-- **Voiceover:** "One primitive, three markets. Cross border remittance at spot. DeFi positions that close themselves at a threshold. Treasury rebalances you do not have to babysit."
-- **Visible proof:** the primitive is the proof. The product just demoed covers all three.
+- **Screen:** Cardanoscan on the release tx. Two inputs (escrow UTXO plus reference to the ODV feed UTXO), one output of 50 tADA to the beneficiary. Cut to beneficiary's Lace wallet: `100 tADA` before, `150 tADA` after. Green overlay on the delta.
+- **Voiceover:** "The escrow closes. The beneficiary wallet jumps by fifty test ADA. No human signed. The library settled only because the oracle proved it could."
+- **Visible proof:** release tx on Cardanoscan, Lace balance before and after.
 
-### F12. Close and call to fork (2:25 to 2:30, 5s)
+### F11. Dual-track impact (2:25 to 2:27, 2s cutaway)
 
-- **Screen:** Repo URL large and centered: `github.com/MorganOnCode/charli3-hackathon-2026`. "MIT" badge. "Built in four days" tag. Charli3 logo small in the corner.
-- **Voiceover:** "Open source, MIT, fork it on GitHub. Thank you Charli3."
-- **Visible proof:** the URL on screen.
+- **Screen:** Two-column card.
+  - Left column: "Oracle Tooling: `charli3-settlement` library. MIT. Fork and ship." with logos of the sample apps (ConditionalPay, PriceAlert, a greyed-out placeholder for "your app here").
+  - Right column: "Real World Settlements: ConditionalPay. Agent-grade escrow on Preprod. One rail for DAO treasuries, subscriptions, milestone payouts, liquidation."
+- **Voiceover:** "One library under the hood. One reference dApp as proof. Two hackathon tracks, one submission."
+- **Visible proof:** the card is the proof of the dual-track positioning.
 
-## Total runtime math
+### F12. Close and call to fork (2:27 to 2:30, 3s)
 
-- F1 to F3 setup: 40 seconds
-- F4 to F6 deposit: 35 seconds
-- F7 to F9 price cross: 40 seconds
-- F10 release: 15 seconds
-- F11 to F12 close: 20 seconds
-- Total: 2 minutes 30 seconds, inside the 2 to 3 minute window
+- **Screen:** Repo URL large: `github.com/MorganOnCode/charli3-hackathon-2026`. Under it: `charli3-settlement` package install line. MIT badge. "Built in four days" tag. Charli3 logo corner.
+- **Voiceover:** "MIT. Fork it. Ship your own agent on Preprod the same day. Thank you Charli3."
+- **Visible proof:** the URL and the install line.
+
+## Runtime math
+
+- F1 to F2 setup and promise: 30 seconds
+- F3 to F4 library and second dApp: 45 seconds
+- F5 to F10 ConditionalPay reference dApp run: 1 minute 15 seconds (60s chain action, 15s transition)
+- F11 to F12 dual-track close: 5 seconds
+- Total: 2 minutes 35 seconds. Trim F4 by 5 seconds in post if we need to hit 2:30 exactly.
 
 ## Voiceover budget
 
-Current v2 word count is 282 across F1 to F12, which fits inside the 370-word ceiling with roughly 35 seconds of natural breathing room distributed between sections at 150 words per minute. Do not pad to use the budget. If any frame runs over on rehearsal, cut F2 first by 5 seconds, then F11. The 370-word ceiling holds under the operating rules even if F4 and F10 expand when real Preprod addresses and balances are read aloud.
+Current v3 word count is roughly 310 across F1 to F12, well under the 370-word ceiling at 150 wpm. If recording runs long, cut F1 by one sentence, then F4 by one sentence. Do not cut F3: the import moment is the whole point of the reframe.
+
+## Shot list (library reusability emphasis)
+
+Delivered separately in `docs/SHOT_LIST.md`. Summary here for reviewer sanity:
+
+1. Editor close-up on a half-written Aiken validator with Charli3 CBOR TODO comments (F1).
+2. README hero block (F2).
+3. Side-by-side code panes: Python on the left, Aiken on the right (F3). This is the frame that must land.
+4. Scaffold montage: shell to editor to running process, under 20 seconds (F4).
+5. Transition card (F5).
+6. Web app to Cardanoscan to Lace, hot-keyed scene switches in OBS (F6 to F10).
+7. Dual-track split card (F11).
+8. Repo URL title (F12).
 
 ## Placeholders awaiting Saturday handoff
 
-These tokens are intentionally faked in v2 and will be substituted once the code stack feeds real data. Each swap is a single-line edit in this file.
-
 | Token | Frame | Source | Due |
 |---|---|---|---|
-| `addr_test1...` beneficiary address | F4, F6 | FrontendDev (CHA-12) wallet panel + OracleEngineer settlement script | Saturday 2026-04-18 18:00 Bangkok |
-| Deposit tx hash `9f3a...c1` | F5, F6 | SmartContractDev escrow release tx on Preprod | Saturday 2026-04-18 18:00 Bangkok |
-| ODV tx hash and datum `price_usd` (live value, illustrative `271000`) | F7, F8 | OracleEngineer scripted ODV push (`oracle-client/scripts/demo_push.py`, ready at `dev@222c021`) | Saturday 2026-04-18 19:00 Bangkok (script ready Friday; gated on Preprod wallet funding tracked at [CHA-18](/CHA/issues/CHA-18) by 14:00 Bangkok per OracleEngineer) |
+| Library public API signatures | F3, F4 | CTO on [CHA-24](/CHA/issues/CHA-24) | Saturday 2026-04-18 14:00 Bangkok |
+| Positioning line in F2 tagline | F2 | ProductStrategist on [CHA-25](/CHA/issues/CHA-25) | Saturday 2026-04-18 14:00 Bangkok |
+| Second app choice for F4 (`PriceAlert` threshold or a tiny settlement fork) | F4 | DemoDirector decides in rehearsal | Saturday 2026-04-18 18:00 Bangkok |
+| `addr_test1...` beneficiary | F6, F7, F10 | FrontendDev ([CHA-12](/CHA/issues/CHA-12)) | Saturday 2026-04-18 18:00 Bangkok |
+| Deposit tx hash `9f3a...c1` | F6, F7 | SmartContractDev | Saturday 2026-04-18 18:00 Bangkok |
+| ODV tx hash and datum price | F8 | OracleEngineer scripted push | Saturday 2026-04-18 18:00 Bangkok |
 | Release tx hash `7b2e...88` | F9, F10 | SmartContractDev + OracleEngineer joint run | Saturday 2026-04-18 18:00 Bangkok |
-| Beneficiary balance 100 to 150 tADA | F10 | FrontendDev second Lace wallet screenshot | Saturday 2026-04-18 18:00 Bangkok |
+| Counterparty balance 100 to 150 tADA | F10 | FrontendDev second Lace wallet | Saturday 2026-04-18 18:00 Bangkok |
 
-Lock amount (50 tADA) and balance delta (100 to 150 tADA) are confirmed against LIVE_DEMO_SCRIPT.md. If FrontendDev or SmartContractDev land different numbers, file a blocker on CHA-15 so the script and storyboard update together.
+Lock amount (50 tADA) and balance delta (100 to 150 tADA) stay confirmed against LIVE_DEMO_SCRIPT.md. If the numbers move in the stack, file a blocker on [CHA-26](/CHA/issues/CHA-26) so the script and storyboard update together.
 
-## What the UI must show (FrontendDev dependencies)
+## What the UI and library must show on camera
 
-These are the UI states Panel 1 and Panel 2 must render for the storyboard to work. Filed separately as a comment on CHA-12 so FrontendDev has one reference.
+These states and outputs must be visible for the storyboard to work. Filed as comments on [CHA-12](/CHA/issues/CHA-12) (FrontendDev) and [CHA-24](/CHA/issues/CHA-24) (CTO).
 
-1. **Wallet connection panel (Panel 1):** Preprod network pill, Lace address truncated with a copy button, tADA balance refreshed on tx confirm.
-2. **Live price panel (Panel 2):** ADA/USD from the real ODV feed once Saturday, Day 1 hardcoded is acceptable. Show timestamp. Show source label reading "Charli3 ODV". One-decimal-of-a-cent precision.
-3. **Deposit form:** beneficiary address field with Preprod validation, amount in tADA, trigger price with direction selector (above or below), expiry date picker. Submit button disabled until wallet connected and form valid.
-4. **Escrow card states:** `Draft`, `Armed` (after deposit tx confirms), `Settling` (after agent submits release), `Settled` (after release confirms), with the release tx hash clickable to Cardanoscan. This state machine is the most visible UI element in the demo.
-5. **Toast or notification for tx submission:** short truncated hash, link to Cardanoscan Preprod. Do not rely on hover tooltips for the tx hash.
+1. **Library README (`charli3-settlement/README.md`):** install block, the exact API surface shown in F3, a "fork in five minutes" quickstart. Hero section must be readable at 1080p from 8 feet away.
+2. **Library import on screen:** syntax-highlighted in the editor (VS Code, dark theme, font size 22). Both Python and Aiken panes.
+3. **Second app scaffold:** an actual runnable example in `packages/charli3-settlement/python/charli3_settlement_examples/price_alert.py`. Must print a threshold result in under 5 seconds on a warm env.
+4. **ConditionalPay UI state machine:** `Draft`, `Armed`, `Settling`, `Settled`, with release tx clickable to Cardanoscan. Unchanged from v2.
+5. **Agent terminal:** log lines prefixed `[charli3-settlement]` (not `[agent]`) so the library brand is visible every time the log shows.
 
-If any of these cannot ship by Saturday 2026-04-18 18:00 Bangkok, we need a pre-rendered fallback frame for that moment.
+If any of these cannot ship by Saturday 2026-04-18 18:00 Bangkok, we fall back to a pre-rendered frame.
 
 ## Tooling
 
-**Primary capture: OBS Studio (local), edited in DaVinci Resolve 19 (free).**
-
-Why OBS over Loom for the submission video:
-
-- OBS captures at 1080p 60fps losslessly. Loom caps at 1080p 30fps on the free tier and re-encodes on upload, which blurs terminal text and datum hex.
-- OBS supports multiple scenes (web app, Cardanoscan, Lace, terminal, diagram) with hotkey switching. A 12-frame storyboard needs scene switching. Loom cannot.
-- DaVinci Resolve gives us frame-accurate cuts, lower thirds for labeling datums and tx hashes, and audio leveling. Loom's built-in editor cannot add the overlays this storyboard depends on.
-- Local files mean we can re-record a single moment without starting over.
-
-**Secondary: Loom for dry-run reviews.** Teammate review of rough cuts stays in Loom because the shared link workflow is fast and we do not need fidelity for feedback rounds.
-
-**Audio:** USB condenser mic, pop filter, Audacity noise reduction pass in post. Target loudness -16 LUFS for YouTube and -14 LUFS for the hackathon's YouTube mirror.
-
-**Screen layout at capture:** 1920x1080, 125 percent browser zoom so text is legible at compressed bitrates. Hide bookmarks bar. One extension visible: Lace.
-
-**Captions:** SRT file generated by Resolve's speech-to-text, hand-corrected for Cardano terminology (Preprod, datum, UTXO, ODV). Attach SRT when uploading to YouTube.
-
-**Thumbnail:** static F11 card with "Trigger" title and Charli3 logo.
+Unchanged from v2.3. OBS Studio for 1080p60 lossless capture, DaVinci Resolve 19 for cuts and lower thirds, Audacity pass on the voiceover, target loudness -16 LUFS for YouTube. Three OBS scenes: editor split, web app, Cardanoscan. Terminal lives as an always-on overlay window.
 
 ## Backup plan
 
 If Preprod is slow on Sunday, we pre-record a clean end-to-end run Saturday 2026-04-18 at 20:00 Bangkok and use it as the video submission. The live demo on Sunday can reference the same screens, with a narration-over-pre-recorded fallback if live chain interactions stall past 20 seconds. Recording logistics, raw-file location, and hosted URL are tracked in [`docs/BACKUP_VIDEO.md`](./BACKUP_VIDEO.md).
 
-## Live demo script v1
+## Live demo script
 
-Separate file: `docs/LIVE_DEMO_SCRIPT.md`. Cross-reference from here.
+Separate file: `docs/LIVE_DEMO_SCRIPT.md`. Cross-reference from here. v3 live script matches this storyboard beat for beat.
