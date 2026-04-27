@@ -2,20 +2,30 @@
  * Charli3 Hackathon settlement demo. MIT License.
  *
  * Builds the EscrowDatum Plutus Data payload for the lock UTxO. The schema
- * is the one in `contracts/validators/escrow.ak` and `contracts/README.md`.
+ * is the one in `contracts/validators/escrow.ak`.
  * Validator title: `escrow.escrow.spend`.
- * Preprod script address (current build): addr_test1wpa7rvc3sse9x2shvx6defy3htm69j8v9q6469xn7yr5mrgzaqyn9
  *
- * The Charli3 ADA/USD ODV oracle on Preprod uses the hackathon-resources
- * canonical config at `oracle-client/configs/ada-usd-preprod.yml`. The
- * oracle authentication NFT asset_name is not yet documented by the Oracle
- * Engineer, so we surface it as an overridable constant that defaults to
- * the Aiken test placeholder. SmartContractDev or Oracle Engineer must
- * confirm before Saturday's real on-chain submit.
+ * As of `cha-22-day2` (SmartContractDev) the validator is parameterized at
+ * compile time with the live Preprod Charli3 ADA/USD oracle identity
+ * (policy + asset). Those two bytes are no longer part of `EscrowDatum`;
+ * six fields remain in Constr 0 order:
+ *
+ *   0 beneficiary       VerificationKeyHash (28 bytes)
+ *   1 sender            VerificationKeyHash (28 bytes)
+ *   2 trigger_price     Int (oracle's native units, 1e6-scaled for ADA/USD)
+ *   3 direction         Constr 0 = Above, Constr 1 = Below
+ *   4 expiry_posix      Int (ms epoch)
+ *   5 max_staleness_ms  Int (must be >= 300_000)
+ *
+ * Current Preprod script hash / address, matching `contracts/plutus.json` and
+ * `contracts/README.md` at tag `cha-22-day2`:
+ *
+ *   script_hash: fdf53d4444f328cf9829fd84b758fca14f7ef06ec8547b9dbd19a4d8
+ *   address:     addr_test1wr7l202ygnej3nuc987cfd6cljs57lhsdmy9g7uah5v6fkq52xzwg
  */
 
 import { paymentKeyHashFromAddress } from './bech32'
-import { PD, encodePlutusData, hexToBytes, plutusDataHex } from './plutus'
+import { PD, encodePlutusData, plutusDataHex } from './plutus'
 import type { Direction, SettlementDraft } from '../state/settlement'
 
 /**
@@ -28,7 +38,7 @@ export function paymentKeyHashFromAny(input: string): Uint8Array {
   const v = input.trim()
   if (v.startsWith('addr')) return paymentKeyHashFromAddress(v)
   if (/^[0-9a-fA-F]+$/.test(v) && v.length >= 58) {
-    const bytes = hexToBytes(v)
+    const bytes = hexToBytesLocal(v)
     if (bytes.length < 29) throw new Error('hex address too short for payment key hash')
     return bytes.slice(1, 29)
   }
@@ -36,12 +46,21 @@ export function paymentKeyHashFromAny(input: string): Uint8Array {
 }
 
 export const ORACLE_PREPROD = {
-  scriptAddress: 'addr_test1wpa7rvc3sse9x2shvx6defy3htm69j8v9q6469xn7yr5mrgzaqyn9',
+  /** Escrow validator address on Preprod, cha-22-day2 applied blueprint. */
+  scriptAddress: 'addr_test1wr7l202ygnej3nuc987cfd6cljs57lhsdmy9g7uah5v6fkq52xzwg',
+  /** Escrow validator script hash, mirrors contracts/plutus.json. */
+  scriptHash: 'fdf53d4444f328cf9829fd84b758fca14f7ef06ec8547b9dbd19a4d8',
+  /** Charli3 ADA/USD ODV oracle host address. Reference only; the policy and
+   *  asset are baked into the escrow validator at compile time. */
   oracleAddress: 'addr_test1wq3pacs7jcrlwehpuy3ryj8kwvsqzjp9z6dpmx8txnr0vkq6vqeuu',
-  oraclePolicyId: '886dcb2363e160c944e63cf544ce6f6265b22ef7c4e2478dd975078e',
-  oracleAssetName: '43334153', // ASCII "C3AS" - confirmed by OracleEngineer NOTES.md against live Preprod oracle UTxO.
-  priceScale: 1_000_000n,        // Charli3 oracles publish int prices scaled by 1e6.
-  defaultStalenessMs: 300_000n,  // 5 minutes, matches odv_validity_length in the YAML config.
+  /** Charli3 oracles publish int prices scaled by 1e6. */
+  priceScale: 1_000_000n,
+  /** Default max staleness offered by the UI. Charli3 writes 5-minute validity
+   *  windows on Preprod, and SmartContractDev recommends 10 min so the release
+   *  tx can still hug the validity window with room to spare. */
+  defaultStalenessMs: 600_000n,
+  /** Absolute floor imposed by the on-chain check (odv_validity_length). */
+  minStalenessMs: 300_000n,
 }
 
 export interface EscrowDatumInputs {
@@ -50,8 +69,6 @@ export interface EscrowDatumInputs {
   triggerPrice: string            // human-readable USD per ADA, e.g. "0.80"
   direction: Direction
   expiresAt: string               // ISO datetime-local, parsed via Date.parse
-  oraclePolicyId?: string         // hex; defaults to ORACLE_PREPROD.oraclePolicyId
-  oracleAssetName?: string        // hex; defaults to ORACLE_PREPROD.oracleAssetName
   maxStalenessMs?: bigint
   priceScale?: bigint
 }
@@ -67,8 +84,6 @@ export interface EncodedDatum {
     direction: 'Above' | 'Below'
     expiryPosixMs: string
     maxStalenessMs: string
-    oraclePolicyId: string
-    oracleAssetName: string
   }
   byteLength: number
 }
@@ -80,8 +95,12 @@ export function buildEscrowDatum(input: EscrowDatumInputs): EncodedDatum {
   const directionConstr = input.direction === 'above' ? 0 : 1
   const expiryMs = parseExpiryMs(input.expiresAt)
   const stalenessMs = input.maxStalenessMs ?? ORACLE_PREPROD.defaultStalenessMs
-  const policyHex = input.oraclePolicyId ?? ORACLE_PREPROD.oraclePolicyId
-  const assetHex = input.oracleAssetName ?? ORACLE_PREPROD.oracleAssetName
+  if (stalenessMs < ORACLE_PREPROD.minStalenessMs) {
+    throw new Error(
+      `max_staleness_ms ${stalenessMs} is below the Charli3 Preprod floor ${ORACLE_PREPROD.minStalenessMs}; ` +
+        `the spend validator will reject even a perfectly fresh feed.`,
+    )
+  }
 
   const datum = PD.constr(0, [
     PD.bytes(beneficiary),
@@ -90,8 +109,6 @@ export function buildEscrowDatum(input: EscrowDatumInputs): EncodedDatum {
     PD.constr(directionConstr, []),
     PD.int(expiryMs),
     PD.int(stalenessMs),
-    PD.bytes(hexToBytes(policyHex)),
-    PD.bytes(hexToBytes(assetHex)),
   ])
 
   const bytes = encodePlutusData(datum)
@@ -105,8 +122,6 @@ export function buildEscrowDatum(input: EscrowDatumInputs): EncodedDatum {
       direction: input.direction === 'above' ? 'Above' : 'Below',
       expiryPosixMs: expiryMs.toString(),
       maxStalenessMs: stalenessMs.toString(),
-      oraclePolicyId: policyHex,
-      oracleAssetName: assetHex,
     },
     byteLength: bytes.length,
   }
@@ -145,6 +160,13 @@ function parseExpiryMs(value: string): bigint {
   const ms = Date.parse(value)
   if (Number.isNaN(ms)) throw new Error(`invalid expiry: ${value}`)
   return BigInt(ms)
+}
+
+function hexToBytesLocal(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) throw new Error('odd-length hex')
+  const out = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  return out
 }
 
 function bytesToHexLocal(b: Uint8Array): string {

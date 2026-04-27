@@ -22,8 +22,8 @@ function App() {
         <div className="flex items-center gap-3">
           <span className="text-accent font-mono text-lg">◉</span>
           <div>
-            <h1 className="text-base font-semibold text-slate-100">Conditional Settlement</h1>
-            <p className="text-xs text-muted">Charli3 ODV oracle · Cardano Preprod · Hackathon 2026</p>
+            <h1 className="text-base font-semibold text-slate-100">ConditionalPay</h1>
+            <p className="text-xs text-muted">Agent-grade settlement · Charli3 ODV · Cardano Preprod</p>
           </div>
         </div>
         <span className="text-xs font-mono text-muted">v0.2 / demo harness</span>

@@ -3,14 +3,16 @@
 // Price-conditional settlement escrow.
 //
 // A depositor locks value at this validator with an inline `EscrowDatum` that
-// pins a trigger rule (price, direction, expiry, oracle identity). The
-// beneficiary can only spend the UTxO along the `Release` path when the
-// transaction carries the canonical Charli3 oracle UTxO as a reference input
-// and the oracle's reading satisfies the rule. The depositor can walk the
-// funds back along the `Reclaim` path once the escrow has expired.
+// pins a trigger rule (price, direction, expiry). The beneficiary can only
+// spend the UTxO along the `Release` path when the transaction carries the
+// canonical Charli3 oracle UTxO as a reference input and the oracle's reading
+// satisfies the rule. The depositor can walk the funds back along the
+// `Reclaim` path once the escrow has expired.
 //
-// The oracle NFT (policy + asset name) is pinned in the datum so that this
-// validator cannot be tricked into reading a look-alike reference input.
+// The oracle identity (policy id + asset name of the authentication NFT) is
+// a compile-time parameter of the validator, not a datum field. This stops
+// a counterfeit reference input from being substituted at spend time and
+// keeps the on-chain datum short.
 
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
@@ -45,12 +47,6 @@ pub type EscrowDatum {
   /// Maximum age (milliseconds) of the oracle reading at the moment the
   /// transaction is considered valid.
   max_staleness_ms: Int,
-  /// Policy id of the authentication NFT carried by the canonical oracle
-  /// UTxO. Pinning this prevents a counterfeit reference input.
-  oracle_policy_id: PolicyId,
-  /// Asset name of the authentication NFT carried by the canonical oracle
-  /// UTxO.
-  oracle_asset_name: AssetName,
 }
 
 pub type EscrowRedeemer {
@@ -58,7 +54,7 @@ pub type EscrowRedeemer {
   Reclaim
 }
 
-validator escrow {
+validator escrow(oracle_policy: PolicyId, oracle_asset: AssetName) {
   spend(
     datum: Option<EscrowDatum>,
     redeemer: EscrowRedeemer,
@@ -67,15 +63,15 @@ validator escrow {
   ) {
     expect Some(d) = datum
     when redeemer is {
-      Release -> check_release(d, self)
+      Release -> check_release(d, self, oracle_policy, oracle_asset)
       Reclaim -> check_reclaim(d, self)
     }
   }
 }
 
 /// Pull the oracle reading out of the transaction's reference inputs, if any.
-/// The canonical oracle UTxO is identified by the (policy, name) pair stored
-/// in the escrow datum.
+/// The canonical oracle UTxO is identified by the compile-time `(policy,
+/// asset)` pair, so a counterfeit reference input cannot be substituted.
 pub fn find_oracle_reading(
   tx: Transaction,
   policy: PolicyId,
@@ -125,9 +121,13 @@ pub fn matches_direction(reading_price: Int, trigger: Int, direction: Direction)
   }
 }
 
-pub fn check_release(d: EscrowDatum, tx: Transaction) -> Bool {
-  expect Some(reading) =
-    find_oracle_reading(tx, d.oracle_policy_id, d.oracle_asset_name)
+pub fn check_release(
+  d: EscrowDatum,
+  tx: Transaction,
+  oracle_policy: PolicyId,
+  oracle_asset: AssetName,
+) -> Bool {
+  expect Some(reading) = find_oracle_reading(tx, oracle_policy, oracle_asset)
   and {
     reading_is_live(reading, tx.validity_range, d.max_staleness_ms),
     matches_direction(reading.price, d.trigger_price, d.direction),
@@ -162,7 +162,20 @@ const mock_oracle_policy: PolicyId =
 
 const mock_oracle_asset: AssetName = #"4f524143"
 
-fn mock_oracle_input(price: Int, timestamp: Int, expiry: Int) -> Input {
+/// Live Preprod Charli3 ADA/USD feed identity. Mirrors the compile-time
+/// parameters baked into `plutus.json` for the committed build.
+const preprod_oracle_policy: PolicyId =
+  #"886dcb2363e160c944e63cf544ce6f6265b22ef7c4e2478dd975078e"
+
+const preprod_oracle_asset: AssetName = #"43334153"
+
+fn mock_oracle_input(
+  policy: PolicyId,
+  asset: AssetName,
+  price: Int,
+  timestamp: Int,
+  expiry: Int,
+) -> Input {
   let datum =
     AggState {
       price_data: PriceMap {
@@ -170,7 +183,7 @@ fn mock_oracle_input(price: Int, timestamp: Int, expiry: Int) -> Input {
       },
     }
   let value =
-    assets.from_asset(mock_oracle_policy, mock_oracle_asset, 1)
+    assets.from_asset(policy, asset, 1)
       |> assets.add(#"", #"", 2_000_000)
   Input {
     output_reference: OutputReference {
@@ -196,8 +209,6 @@ fn mock_datum(direction: Direction, trigger: Int, expiry: Int) -> EscrowDatum {
     direction,
     expiry_posix: expiry,
     max_staleness_ms: 60_000,
-    oracle_policy_id: mock_oracle_policy,
-    oracle_asset_name: mock_oracle_asset,
   }
 }
 
@@ -206,11 +217,19 @@ test release_above_trigger_ok() {
   let tx =
     Transaction {
       ..tx_mod.placeholder,
-      reference_inputs: [mock_oracle_input(1_500_000, 1000, 5000)],
+      reference_inputs: [
+        mock_oracle_input(
+          mock_oracle_policy,
+          mock_oracle_asset,
+          1_500_000,
+          1000,
+          5000,
+        ),
+      ],
       validity_range: ivl.between(1100, 1200),
       extra_signatories: [beneficiary_vkh],
     }
-  check_release(datum, tx)
+  check_release(datum, tx, mock_oracle_policy, mock_oracle_asset)
 }
 
 test release_blocked_below_trigger() fail {
@@ -218,11 +237,19 @@ test release_blocked_below_trigger() fail {
   let tx =
     Transaction {
       ..tx_mod.placeholder,
-      reference_inputs: [mock_oracle_input(800_000, 1000, 5000)],
+      reference_inputs: [
+        mock_oracle_input(
+          mock_oracle_policy,
+          mock_oracle_asset,
+          800_000,
+          1000,
+          5000,
+        ),
+      ],
       validity_range: ivl.between(1100, 1200),
       extra_signatories: [beneficiary_vkh],
     }
-  check_release(datum, tx)
+  check_release(datum, tx, mock_oracle_policy, mock_oracle_asset)
 }
 
 test reclaim_after_expiry_ok() {
@@ -252,11 +279,19 @@ test release_without_beneficiary_signature_blocked() fail {
   let tx =
     Transaction {
       ..tx_mod.placeholder,
-      reference_inputs: [mock_oracle_input(1_500_000, 1000, 5000)],
+      reference_inputs: [
+        mock_oracle_input(
+          mock_oracle_policy,
+          mock_oracle_asset,
+          1_500_000,
+          1000,
+          5000,
+        ),
+      ],
       validity_range: ivl.between(1100, 1200),
       extra_signatories: [sender_vkh],
     }
-  check_release(datum, tx)
+  check_release(datum, tx, mock_oracle_policy, mock_oracle_asset)
 }
 
 test release_with_stale_feed_blocked() fail {
@@ -265,9 +300,66 @@ test release_with_stale_feed_blocked() fail {
   let tx =
     Transaction {
       ..tx_mod.placeholder,
-      reference_inputs: [mock_oracle_input(1_500_000, 1_000, 10_000)],
+      reference_inputs: [
+        mock_oracle_input(
+          mock_oracle_policy,
+          mock_oracle_asset,
+          1_500_000,
+          1_000,
+          10_000,
+        ),
+      ],
       validity_range: ivl.between(5_000, 6_000),
       extra_signatories: [beneficiary_vkh],
     }
-  check_release(datum, tx)
+  check_release(datum, tx, mock_oracle_policy, mock_oracle_asset)
+}
+
+/// Reject a reference input that carries the wrong oracle NFT policy.
+/// Guards against a look-alike feed being smuggled past the validator.
+test release_with_wrong_oracle_policy_blocked() fail {
+  let datum = mock_datum(Above, 200_000, 10_000_000_000_000)
+  let counterfeit_policy: PolicyId =
+    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let tx =
+    Transaction {
+      ..tx_mod.placeholder,
+      reference_inputs: [
+        mock_oracle_input(
+          counterfeit_policy,
+          preprod_oracle_asset,
+          258_452,
+          1_776_386_294_152,
+          1_776_386_725_192,
+        ),
+      ],
+      validity_range: ivl.between(1_776_386_294_200, 1_776_386_300_000),
+      extra_signatories: [beneficiary_vkh],
+    }
+  check_release(datum, tx, preprod_oracle_policy, preprod_oracle_asset)
+}
+
+/// Live Preprod happy path with the real ADA/USD NFT policy / asset and a
+/// price captured from the CHA-10 canonical datum CBOR (price=258452,
+/// timestamp=1776386294152, expiry=1776386725192). Exercised against a
+/// trigger of 0.20 USD so an ADA/USD reading of 0.258452 USD releases.
+test release_happy_path_preprod_live_price() {
+  let trigger = 200_000
+  let datum = mock_datum(Above, trigger, 10_000_000_000_000)
+  let tx =
+    Transaction {
+      ..tx_mod.placeholder,
+      reference_inputs: [
+        mock_oracle_input(
+          preprod_oracle_policy,
+          preprod_oracle_asset,
+          258_452,
+          1_776_386_294_152,
+          1_776_386_725_192,
+        ),
+      ],
+      validity_range: ivl.between(1_776_386_294_200, 1_776_386_300_000),
+      extra_signatories: [beneficiary_vkh],
+    }
+  check_release(datum, tx, preprod_oracle_policy, preprod_oracle_asset)
 }

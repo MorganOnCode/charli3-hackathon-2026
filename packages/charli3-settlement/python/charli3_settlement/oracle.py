@@ -1,23 +1,21 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 MorganOnCode
-"""oracle_client.settlement - project wrapper around Charli3's pull oracle.
+"""charli3_settlement.oracle - pull oracle building blocks.
 
-Three callables, one config. Everything else lives in the Charli3 MIT SDK:
+Three callables and three dataclasses, all MIT licensed, all reusable by
+any Cardano dApp that wants price-conditional settlement on top of Charli3's
+pull oracle:
 
-- `request_fresh_price(config_path)` asks the configured Preprod node
-  operators for signed price messages, aggregates them locally, and returns
-  the median price plus timestamp / expiry. It does not touch the chain.
-  Good for the frontend price panel and health checks.
-
-- `submit_odv_tx(config_path, wait)` does everything `request_fresh_price`
-  does and then builds, signs, and submits the ODV aggregation transaction
-  that writes the fresh reading to the oracle UTxO. Returns the tx hash,
-  the fresh UTxO reference, and the decoded price / timestamp / expiry.
-
-- `build_and_submit_release(...)` builds a dApp transaction that spends a
-  UTxO at our escrow validator while referencing the fresh oracle UTxO as
-  a reference input. Signs and submits it. Returns the release tx hash and
-  the same price triplet.
+- `load_settings(path)` parses a Charli3 ODV client YAML into typed config.
+- `request_fresh_price(path)` asks the configured Preprod node operators
+  for signed price messages, aggregates them, and returns the median price
+  plus timestamp / expiry. No on-chain write.
+- `submit_odv_tx(path)` does everything `request_fresh_price` does and then
+  builds, signs, and submits the ODV aggregation transaction that writes
+  the fresh reading to the oracle UTxO.
+- `decode_oracle_datum_cbor(hex)` turns a raw inline-datum CBOR hex into
+  the same `FreshPrice` shape. Useful for frontends that read the oracle
+  UTxO directly.
 
 The wallet mnemonic is pulled from the `WALLET_MNEMONIC` env var. For
 read-only flows the SDK falls back to the BIP-39 zero-ADA test vector.
@@ -30,22 +28,9 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
-from pycardano import (
-    Address,
-    ExtendedSigningKey,
-    PaymentSigningKey,
-    PlutusV3Script,
-    Redeemer,
-    RedeemerTag,
-    Transaction,
-    TransactionBuilder,
-    TransactionOutput,
-    UTxO,
-    VerificationKeyHash,
-)
-
+from pycardano import Address, ScriptHash, TransactionId, TransactionInput, UTxO
 from charli3_odv_client.cli.utils.shared import (
     create_chain_query,
     setup_transaction_builder,
@@ -60,17 +45,21 @@ from charli3_odv_client.core.client import ODVClient
 from charli3_odv_client.models.base import TxValidityInterval
 from charli3_odv_client.models.datums import AggState
 from charli3_odv_client.models.requests import OdvFeedRequest, OdvTxSignatureRequest
+from charli3_odv_client.utils.oracle import chain_operations, state_validation
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_CONFIG_PATH = (
-    Path(__file__).resolve().parents[2] / "configs" / "ada-usd-preprod.yml"
-)
+# Canonical Preprod asset name for the ADA/USD AggState. Exposed for filtering
+# oracle UTxOs by asset when a dApp wants to short-circuit the UTxO scan.
+AGG_STATE_ASSET_NAME_HEX = "43334153"  # "C3AS"
 
-# Canonical Preprod identifiers for the ADA/USD feed. Hard-coded only so the
-# release wrapper can filter the oracle UTxO set to the one asset we care
-# about. Everything authoritative still comes from the YAML config.
-AGG_STATE_ASSET_NAME_HEX = "43334153"  # C3AS
+# BIP-39 zero-ADA test vector; valid mnemonic for read-only flows so the
+# SDK's KeyManager.from_config passes validation. Never used for signing
+# anything that reaches the network.
+_BIP39_TEST_VECTOR = (
+    "abandon abandon abandon abandon abandon abandon abandon abandon "
+    "abandon abandon abandon about"
+)
 
 
 @dataclass(frozen=True)
@@ -96,44 +85,45 @@ class OdvSubmission:
     tx_hash: str
     oracle_utxo_ref: str  # "<tx_hash>#<output_index>"
     price: FreshPrice
+    oracle_utxo: UTxO | None = None
 
 
 @dataclass(frozen=True)
-class ReleaseSubmission:
-    """Result of submitting the escrow-release dApp tx."""
-
-    release_tx_hash: str
-    odv: OdvSubmission
-
-
-@dataclass(frozen=True)
-class _Settings:
-    """Loaded view of the YAML config. Keeps the Charli3 types on the edge."""
+class Settings:
+    """Loaded view of the YAML config. Keeps SDK types on the edge."""
 
     config_path: Path
     client: ODVClientConfig
     reference_script: ReferenceScriptConfig
 
 
-def load_settings(config_path: Path | str | None = None) -> _Settings:
-    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
-    # The SDK's KeyManager validates the mnemonic at parse time. Accept the
-    # BIP-39 test vector for read-only flows; callers that submit must set
-    # WALLET_MNEMONIC themselves.
-    os.environ.setdefault(
-        "WALLET_MNEMONIC",
-        "abandon abandon abandon abandon abandon abandon abandon abandon "
-        "abandon abandon abandon about",
-    )
-    return _Settings(
+def load_settings(config_path: Path | str) -> Settings:
+    """Parse a Charli3 ODV client YAML into typed config.
+
+    Sets `WALLET_MNEMONIC` to the BIP-39 test vector when unset so the SDK's
+    mnemonic validator passes on read-only flows. Callers that submit on
+    chain must export their own funded mnemonic before importing the SDK.
+    """
+    path = Path(config_path)
+    os.environ.setdefault("WALLET_MNEMONIC", _BIP39_TEST_VECTOR)
+    return Settings(
         config_path=path,
         client=ODVClientConfig.from_yaml(path),
         reference_script=ReferenceScriptConfig.from_yaml(path),
     )
 
 
-async def _collect_aggregated_feed(settings: _Settings, *, tx_manager) -> FreshPrice:
+async def _collect_aggregated_feed(
+    settings: Settings, *, tx_manager: Any
+) -> FreshPrice:
     """Hit the configured oracle nodes and aggregate a fresh reading."""
+    oracle_address = Address.from_primitive(settings.client.oracle_address)
+    policy_id = ScriptHash.from_primitive(bytes.fromhex(settings.client.policy_id))
+    script_utxos = await chain_operations.get_script_utxos(oracle_address, tx_manager)
+    settings_datum, _settings_utxo = state_validation.get_oracle_settings_by_policy_id(
+        script_utxos, policy_id
+    )
+
     validity_window = tx_manager.calculate_validity_window(
         settings.client.odv_validity_length
     )
@@ -167,7 +157,7 @@ async def _collect_aggregated_feed(settings: _Settings, *, tx_manager) -> FreshP
         (feeds[len(feeds) // 2 - 1] + feeds[len(feeds) // 2]) // 2
     )
     timestamp_ms = int(validity_window.current_time)
-    expiry_ms = timestamp_ms + settings.client.odv_validity_length
+    expiry_ms = timestamp_ms + settings_datum.aggregation_liveness_period
     return FreshPrice(
         price=int(median),
         timestamp_ms=timestamp_ms,
@@ -177,10 +167,16 @@ async def _collect_aggregated_feed(settings: _Settings, *, tx_manager) -> FreshP
     )
 
 
-async def request_fresh_price(
-    config_path: Path | str | None = None,
-) -> FreshPrice:
-    """Return a freshly aggregated ADA/USD reading without touching the chain."""
+async def _close_chain_query(chain_query: Any) -> None:
+    close = getattr(chain_query, "close", None)
+    if callable(close):
+        maybe_awaitable = close()
+        if asyncio.iscoroutine(maybe_awaitable):
+            await maybe_awaitable
+
+
+async def request_fresh_price(config_path: Path | str) -> FreshPrice:
+    """Return a freshly aggregated reading without touching the chain."""
     settings = load_settings(config_path)
     chain_query = create_chain_query(settings.client)
     tx_manager, _tx_builder = setup_transaction_builder(
@@ -189,15 +185,11 @@ async def request_fresh_price(
     try:
         return await _collect_aggregated_feed(settings, tx_manager=tx_manager)
     finally:
-        close = getattr(chain_query, "close", None)
-        if callable(close):
-            maybe_awaitable = close()
-            if asyncio.iscoroutine(maybe_awaitable):
-                await maybe_awaitable
+        await _close_chain_query(chain_query)
 
 
 async def submit_odv_tx(
-    config_path: Path | str | None = None,
+    config_path: Path | str,
     *,
     wait_confirmation: bool = True,
 ) -> OdvSubmission:
@@ -206,16 +198,20 @@ async def submit_odv_tx(
     Requires `WALLET_MNEMONIC` pointing at a funded Preprod wallet.
     """
     settings = load_settings(config_path)
-    chain_query = create_chain_query(settings.client)
-    tx_manager, tx_builder = setup_transaction_builder(
-        settings.client, settings.reference_script, chain_query
+    client = ODVClient()
+
+    # Build the feed request on one query context, then reopen a fresh query
+    # right before ODV tx construction. This avoids reusing a stale Kupo UTxO
+    # snapshot across the gap between feed collection and script-input lookup.
+    initial_chain_query = create_chain_query(settings.client)
+    initial_tx_manager, _initial_tx_builder = setup_transaction_builder(
+        settings.client, settings.reference_script, initial_chain_query
     )
     try:
-        price = await _collect_aggregated_feed(settings, tx_manager=tx_manager)
-        validity_window = tx_manager.calculate_validity_window(
+        price = await _collect_aggregated_feed(settings, tx_manager=initial_tx_manager)
+        validity_window = initial_tx_manager.calculate_validity_window(
             settings.client.odv_validity_length
         )
-        client = ODVClient()
         feed_request = OdvFeedRequest(
             oracle_nft_policy_id=settings.client.policy_id,
             tx_validity_interval=TxValidityInterval(
@@ -228,9 +224,18 @@ async def submit_odv_tx(
         )
         if not node_messages:
             raise RuntimeError("Feed collection returned no node messages on submit.")
-        signing_key, _pay_vk, _stake_vk, change_address = KeyManager.load_from_config(
-            settings.client.wallet
-        )
+    finally:
+        await _close_chain_query(initial_chain_query)
+
+    signing_key, _pay_vk, _stake_vk, change_address = KeyManager.load_from_config(
+        settings.client.wallet
+    )
+
+    fresh_chain_query = create_chain_query(settings.client)
+    tx_manager, tx_builder = setup_transaction_builder(
+        settings.client, settings.reference_script, fresh_chain_query
+    )
+    try:
         odv_result = await tx_builder.build_odv_tx(
             node_messages=node_messages,
             signing_key=signing_key,
@@ -274,6 +279,12 @@ async def submit_odv_tx(
         # with what reference-input consumers will fetch next.
         tx_hash = str(odv_result.transaction.id)
         agg_state_index = 1
+        predicted_oracle_utxo = UTxO(
+            input=TransactionInput(
+                TransactionId.from_primitive(bytes.fromhex(tx_hash)), agg_state_index
+            ),
+            output=odv_result.agg_state_output,
+        )
         LOG.info(
             "ODV submitted tx=%s status=%s median=%s ts=%s",
             tx_hash,
@@ -285,105 +296,10 @@ async def submit_odv_tx(
             tx_hash=tx_hash,
             oracle_utxo_ref=f"{tx_hash}#{agg_state_index}",
             price=price,
+            oracle_utxo=predicted_oracle_utxo,
         )
     finally:
-        close = getattr(chain_query, "close", None)
-        if callable(close):
-            maybe_awaitable = close()
-            if asyncio.iscoroutine(maybe_awaitable):
-                await maybe_awaitable
-
-
-async def build_and_submit_release(
-    *,
-    escrow_utxo: UTxO,
-    release_redeemer_cbor: bytes,
-    escrow_plutus_script: PlutusV3Script,
-    beneficiary_signing_key: PaymentSigningKey | ExtendedSigningKey,
-    beneficiary_address: Address,
-    beneficiary_vkh: VerificationKeyHash,
-    release_outputs: Iterable[TransactionOutput],
-    config_path: Path | str | None = None,
-    odv: OdvSubmission | None = None,
-    wait_confirmation: bool = True,
-) -> ReleaseSubmission:
-    """Build and submit the escrow-release dApp tx.
-
-    If `odv` is None, first submits the ODV aggregation tx so the dApp tx
-    can reference the fresh UTxO in the same block. If `odv` is supplied,
-    reuses it (the caller has already produced a fresh reading).
-    """
-    settings = load_settings(config_path)
-    if odv is None:
-        odv = await submit_odv_tx(config_path=config_path, wait_confirmation=False)
-
-    chain_query = create_chain_query(settings.client)
-    tx_manager, tx_builder = setup_transaction_builder(
-        settings.client, settings.reference_script, chain_query
-    )
-    try:
-        # Resolve the fresh AggState UTxO on chain by (tx_hash, output_index).
-        oracle_ref_tx_hash, oracle_ref_index = odv.oracle_utxo_ref.split("#")
-        oracle_utxos = [
-            utxo
-            for utxo in await chain_query.get_utxos(settings.client.oracle_address)
-            if str(utxo.input.transaction_id) == oracle_ref_tx_hash
-            and utxo.input.index == int(oracle_ref_index)
-        ]
-        if not oracle_utxos:
-            raise RuntimeError(
-                f"Fresh oracle UTxO {odv.oracle_utxo_ref} not yet visible at "
-                f"{settings.client.oracle_address}. Wait for confirmation "
-                "before building the release tx."
-            )
-        oracle_utxo = oracle_utxos[0]
-
-        # Validity window hugs the oracle reading. Max staleness is enforced
-        # on chain by the escrow validator so we keep the window tight.
-        validity_start_ms = odv.price.timestamp_ms
-        validity_end_ms = odv.price.expiry_ms
-        validity_start_slot = tx_builder.network_config.posix_to_slot(
-            validity_start_ms
-        )
-        validity_end_slot = tx_builder.network_config.posix_to_slot(validity_end_ms)
-
-        redeemer = Redeemer(tag=RedeemerTag.SPEND, data=release_redeemer_cbor)
-
-        tx = await tx_manager.build_script_tx(
-            script_inputs=[(escrow_utxo, redeemer, escrow_plutus_script)],
-            script_outputs=list(release_outputs),
-            reference_inputs={oracle_utxo},
-            required_signers=[beneficiary_vkh],
-            change_address=beneficiary_address,
-            signing_key=beneficiary_signing_key,
-            validity_start=validity_start_slot,
-            validity_end=validity_end_slot,
-        )
-        status, _submitted = await tx_manager.sign_and_submit(
-            tx,
-            signing_keys=[beneficiary_signing_key],
-            wait_confirmation=wait_confirmation,
-        )
-        if status not in ("submitted", "confirmed"):
-            raise RuntimeError(f"Release submission returned status={status!r}")
-        # Read the hash off the signed tx (see submit_odv_tx for rationale).
-        release_tx_hash = str(tx.id)
-        LOG.info(
-            "release submitted tx=%s status=%s ref_oracle=%s",
-            release_tx_hash,
-            status,
-            odv.oracle_utxo_ref,
-        )
-        return ReleaseSubmission(
-            release_tx_hash=release_tx_hash,
-            odv=odv,
-        )
-    finally:
-        close = getattr(chain_query, "close", None)
-        if callable(close):
-            maybe_awaitable = close()
-            if asyncio.iscoroutine(maybe_awaitable):
-                await maybe_awaitable
+        await _close_chain_query(fresh_chain_query)
 
 
 def decode_oracle_datum_cbor(cbor_hex: str) -> FreshPrice:

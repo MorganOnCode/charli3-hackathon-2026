@@ -1,120 +1,157 @@
-# LIVE DEMO SCRIPT v2
+# LIVE DEMO SCRIPT (v3 Dual-Track)
 
 **Owner:** DemoDirector
-**Version:** v2.1 (Friday 2026-04-17 evening pass; price domain rebased to live Preprod ADA/USD ~0.253 per OracleEngineer NOTES.md, signature count corrected to 2 of 2; criteria one-liners locked per CEO review on [CHA-14](/CHA/issues/CHA-14))
+**Version:** v3.0 (Friday 2026-04-17 evening Bangkok). Replaces v2.3 end to end after Human Founder picked Option B on [CHA-23](/CHA/issues/CHA-23). Library `charli3-settlement` is the product. ConditionalPay is the reference dApp that proves it. Library public API shown below is the proposed surface; CTO confirms on [CHA-24](/CHA/issues/CHA-24). Positioning and judging narrative are aligned to ProductStrategist deliverables on [CHA-25](/CHA/issues/CHA-25).
 **Slot:** Sunday 2026-04-19, 23:00 Bangkok (12:00 EST)
 **Hard runtime:** 4 minutes. Stop at 4:00 even mid-sentence.
 **Q&A cushion:** 2 minutes of open Q&A assumed after the 4-minute wall.
-**Presenter:** CEO delivers, DemoDirector drives the screen and the timer.
+**Presenter:** CEO delivers. DemoDirector drives the screen and the timer.
 
 ## Setup, before the slot starts
 
-- Browser windows pre-arranged, hotkey-switchable:
-  1. Trigger web app at `localhost:5173`, wallet connected to Preprod.
-  2. Cardanoscan Preprod tab on the escrow address, refreshable.
-  3. Agent terminal pane full-screen dark, 18pt font.
-  4. Diagram slide for the 30-second tech intro.
-- Preprod wallet funded with 500 tADA. Beneficiary wallet at 100 tADA baseline.
+- Browser windows and scenes pre-arranged, hotkey-switchable in OBS:
+  1. Editor split pane (VS Code, dark theme, 22pt) with `charli3-settlement/README.md`, Python quickstart, and Aiken quickstart side by side.
+  2. Second editor pane with `packages/charli3-settlement/python/charli3_settlement_examples/price_alert.py` ready to run.
+  3. ConditionalPay web app at `localhost:5173`, wallet connected to Preprod.
+  4. Cardanoscan Preprod tab on the escrow address, refreshable.
+  5. Agent terminal pane full-screen dark, 18pt font, showing the library log prefix `[charli3-settlement]`.
+  6. Diagram slide reserved for fallback only (v3 opens in the editor, not on a diagram).
+- Preprod wallet funded with 500 tADA. Counterparty wallet at 100 tADA baseline.
 - Rehearsed oracle-feed warm-up: OracleEngineer has scripted an ODV push that crosses the trigger within 15 seconds of the rule being armed. Presenter starts the demo with the rule already close to the trigger so we do not wait on natural price movement.
-- Countdown timer visible on the presenter laptop only, not on the shared screen. Stopwatch started the instant the share begins.
-- Backup video (the recorded submission) is cued to F4 in a background tab. If Preprod stalls past 20 seconds on any tx, cut to the backup and narrate live.
+- Countdown timer visible on the presenter laptop only. Stopwatch started the instant the share begins.
+- Backup video cued to F6 (ConditionalPay deposit) in a background tab. If Preprod stalls past 20 seconds on any tx, cut to the backup and narrate live.
 
 ## Runtime plan
 
 | Time | Section | Owner on screen |
 |---|---|---|
-| 0:00 to 0:30 | Hook and problem | CEO, camera, no share yet |
-| 0:30 to 1:00 | Tech in one breath | CEO on diagram slide |
-| 1:00 to 2:30 | Live walkthrough | Screen share, CEO narrates, DemoDirector drives |
-| 2:30 to 3:15 | Judging-criteria mapping | CEO on a four-card slide |
-| 3:15 to 4:00 | Close and call to fork | CEO on repo slide |
+| 0:00 to 0:20 | Builder pain | CEO, camera, no share yet |
+| 0:20 to 0:50 | Library pitch and import moment | Screen share, editor split |
+| 0:50 to 1:30 | Second dApp scaffold (library reusability) | Screen share, terminal + editor |
+| 1:30 to 2:45 | ConditionalPay reference dApp on Preprod | Screen share, web app + Cardanoscan + Lace |
+| 2:45 to 3:15 | Judging-criteria mapping (dual-track) | Four-card slide |
+| 3:15 to 4:00 | Close and call to fork | Repo slide |
 | 4:00 | STOP | Hard cutoff |
 
 ## Script
 
-### 0:00 to 0:30, hook and problem (CEO, camera only)
+### 0:00 to 0:20, builder pain (CEO, camera only)
 
-"Good morning judges. Real world payments on Cardano have a waiting problem. A treasury pays an invoice at spot. A DAO rebalances at a threshold. A remittance corridor settles at a fair rate. Today, a human sits at a terminal and clicks at the right moment, or a centralized service clicks for them. We think Cardano with Charli3 makes that human unnecessary. The settlement itself should be conditional, verifiable, and atomic. Let me show you what we built in four days."
+"Good morning judges. Here is where every Cardano team that wants an oracle-gated settlement agent gets stuck. You open your editor. You want a validator that reads Charli3's PriceData CBOR from a reference input. You want a Python agent that submits an ODV request and a release transaction in the same block. You want wallet glue. That is three hundred lines of plumbing every single team writes, and most teams get the reference-input semantics wrong on the first attempt. We fixed that. Let me show you."
 
-**Timer check:** at 0:30, must be past this block. If over, trim "A remittance corridor settles at a fair rate."
+**Timer check:** at 0:20, must be switching to screen share on the editor.
 
-### 0:30 to 1:00, tech in one breath (diagram slide)
+### 0:20 to 0:50, library pitch and import moment (screen share, editor split)
 
-"The architecture is three pieces. An Aiken validator that holds funds in escrow with a trigger rule as datum. A Python agent that watches price and fires the Charli3 ODV pull oracle when the rule is satisfied. And a React front end with CIP-30 wallet support where a user arms the rule in fifteen seconds. The oracle is load bearing. Remove it and the validator has no trusted price. Let me show you."
+**0:20, README hero.** "We extracted the plumbing into a library. It is called `charli3-settlement`. MIT license. Today it ships on Preprod."
 
-**Timer check:** at 1:00, must be on screen share with the Trigger app visible.
+**0:30, the import.** Switch to the editor split pane. Point at the Python pane first.
 
-### 1:00 to 2:30, live walkthrough (screen share)
+"One import block. `from charli3_settlement import submit_odv_tx, build_with_oracle_reference`. You submit ODV once, then hand your dApp callback a ready-built oracle reference context. That is the whole off-chain surface."
 
-**1:00, deposit form.** "Fifty test ADA, beneficiary address here, trigger ADA to USD at twenty seven cents, expiry tomorrow midnight. Sign in Lace." Click sign. Lace popup. Confirm.
+Point at the Aiken pane.
 
-**1:20, escrow confirmed.** "Tx lands on Preprod. The escrow is armed. Here is the datum on Cardanoscan. The rule is public." Switch to Cardanoscan tab for 5 seconds. Highlight datum.
+"On chain, one import. `use charli3_settlement/oracle`. Read the oracle UTxO by NFT, check freshness, compare price, release. No custom CBOR parser. No hand-rolled reference-input semantics."
 
-**1:35, agent terminal.** "The agent is polling the ODV feed. Current price, zero point two five three, trigger zero point two seven. Watch the log." Pause for the scripted ODV push.
+**Timer check:** leave this section by 0:50. If we hit 0:55, cut one sentence from the second-app beat.
 
-> **Presenter side action (off-mic).** DemoDirector fires the cue-able push from a second terminal:
-> ```
-> WALLET_MNEMONIC='<funded-24-words>' python oracle-client/scripts/demo_push.py --trigger-price 270000 --direction above
-> ```
-> Script lives at `dev@222c021`, tagged `cha-18-day2-partial`. Measured Preprod latency 6 to 10 s warm, well inside the 15 s envelope. Exit code 0 = crossed and submitted, exit 5 = over-budget (presenter narrates over while we wait), exit 4 = did not cross (rerun). Pre-flight dry run before going live: append `--dry-run`.
+### 0:50 to 1:30, second dApp scaffold (screen share, terminal + editor)
 
-**1:45, oracle cross.** "Price just crossed. The agent submits the ODV request." Terminal advances. "Fresh price datum on chain, signed by both Charli3 Preprod nodes."
+Switch the editor to `packages/charli3-settlement/python/charli3_settlement_examples/price_alert.py` and the terminal to the runnable example.
 
-**2:00, release tx.** "Agent references the oracle UTXO as a read-only input and spends the escrow. Same block." Flip to Cardanoscan. "Two inputs, one output. Fifty tADA to the beneficiary."
+"Here is the proof this is not one demo wrapped in nicer words. Different app, same library. This is a price-alert bot instead of a settlement rail. It imports the same package, requests the same live price, and checks a different business rule."
 
-**2:15, beneficiary wallet.** "Beneficiary balance, before one hundred, after one hundred fifty." Flip to second Lace window. Show jump.
+Run the example:
 
-**2:30, end walkthrough.** "No human signed that release. The oracle did."
+```bash
+python -m charli3_settlement_examples.price_alert --threshold 250000 --direction above
+```
 
-**Timer discipline:** if at 2:00 we are not yet showing the release, CUT the beneficiary wallet flip and skip to judging criteria. The release tx on Cardanoscan is enough proof.
+As the terminal prints the live threshold result, say:
 
-### 2:30 to 3:15, judging-criteria mapping (four-card slide, one line each)
+"Another team can fork this and swap only the consumer logic. The Charli3 integration stays the same. That is why this qualifies as Oracle Tooling, not just one dApp."
 
-The four one-liners below are locked per CEO review on [CHA-14](/CHA/issues/CHA-14). Total runtime at 150 wpm is approximately 42 seconds, inside the 45-second block. Do not paraphrase on stage.
+Then show the tiny `consumer_fn` callback inside the example and say:
 
-**Technical.** "The Aiken validator at `contracts/validators/escrow.ak` decodes Charli3's PriceData CBOR from the reference input and gates every payout on it. Remove the oracle reference input and every release transaction fails on chain. The script enforces the dependency, not the client."
+"Change this callback and you have a new product."
 
-**Innovation.** "Price-conditional settlement, not price-conditional trading. Swaps exist in volume. Atomic settlement against verifiable state is the missing rail, and it is only possible because Charli3's oracle is pull based and on demand."
+**Timer check:** leave by 1:30. If the example takes too long, cut the callback line and move immediately to ConditionalPay.
 
-**Impact.** "One primitive, four markets. Remittance at spot, invoice settlement at today's FX, DAO treasury rebalancing, automated liquidation. Every one of those ships on top of our rail without writing oracle integration."
+### 1:30 to 2:45, ConditionalPay reference dApp on Preprod (screen share, web app + Cardanoscan + Lace)
 
-**Business.** "MIT license on the validator and the Python client. Any team can fork and ship a conditional payout on Preprod the same day. Revenue lands as basis points on settled notional or a subscription tier for high-frequency triggers."
+Move to the web app.
 
-**Timer check:** at 3:15, must be on close slide.
+"Now the same library inside the reference dApp. This is ConditionalPay, our Real World Settlements submission. The operator commits funds into an Aiken escrow with one rule: pay only when Charli3 proves the condition."
 
-### 3:15 to 4:00, close and call to fork
+Fill the form and sign in Lace. When the lock transaction confirms:
 
-"Four days. MIT license. One repo. `github.com/MorganOnCode/charli3-hackathon-2026`. Fork it, ship your own conditional settlement. Charli3 made this possible because the oracle is pull based and on demand, which means the rule can live on chain and the settlement can be atomic. Thank you."
+"The agent is armed. The rule lives on chain in the datum."
 
-Leave repo slide on screen. Do not take the slide off before the 4:00 cutoff.
+Jump to Cardanoscan on the escrow UTxO:
 
-## Rehearsal plan
+"Public and auditable. Trigger price. Direction. Beneficiary. Expiry. The validator will only release against those fields."
 
-- **Rehearsal 1:** Sunday 2026-04-19, 15:00 Bangkok. Full dry run. Time every block. Identify which tx is the slowest on Preprod and build patience for it into the narration. Target total time 3:50, leaving 10 seconds of slack.
-- **Rehearsal 2:** Sunday 16:30 Bangkok. Second dry run. Tighten any block that ran over. Rehearse the backup-video cutover at the 20-second stall point.
-- **Rehearsal 3:** Sunday 20:00 Bangkok. Final dry run. Full team watches. Only cosmetic fixes accepted after this run.
+Switch to the agent terminal and live price panel.
 
-## Rehearsal kit
+"The library polls the live ADA/USD feed. When the rule proves, it submits ODV, then spends the escrow with that oracle UTxO as a reference input in the same block."
 
-- Presenter laptop with the live stack.
-- Second laptop running the backup video cued to F4.
-- Countdown timer app (big clock) on presenter screen only.
-- Stopwatch phone clipped to the presenter's line of sight.
-- Shared doc with the four-card slide text, so if the presenter blanks the CEO can read from it.
+Run the scripted push. As the ODV transaction confirms:
 
-## Failure modes and what we do
+"Here is the ODV transaction. And here is the library attaching the resulting oracle UTxO as a reference input."
 
-| Failure | Response |
-|---|---|
-| Preprod tx pending past 20 seconds | Cut to backup video at F4, narrate live |
-| Lace wallet will not connect | Switch to pre-signed tx flow prepared by FrontendDev; show Cardanoscan only |
-| Oracle feed down | OracleEngineer runs the scripted local ODV push; same datum, same node signatures, still valid on Preprod |
-| Presenter forgets a line | CEO reads from the shared doc. No apologies on air. |
-| Projector cable fails | Spare HDMI and USB-C adapter in the demo kit |
+As the release transaction confirms and the card flips to Settled:
 
-## Do-not-do list
+"Now the release transaction. Same rail, same library, different consumer callback."
 
-- No em dashes in any slide copy.
-- No "um, so" filler at the start of sections. Start each block with a verb or a number.
-- No apologizing for anything during the run. If something breaks, narrate over it.
-- No going over 4:00. Hard stop.
+Show the beneficiary balance jump from 100 tADA to 150 tADA and close the section with:
+
+"No human signed this payout. The library settled only because the oracle proved it could."
+
+**Timer check:** leave by 2:45. If any tx stalls past 20 seconds, cut to the backup video and keep narrating without apology.
+
+### 2:45 to 3:15, judging-criteria mapping (four-card slide)
+
+"This is why the project plays in two categories. Technical Implementation: the Aiken validator gates on a live Charli3 reference input, and the Python agent composes ODV plus release in one flow. Innovation: we turned that plumbing into one importable library instead of another private integration. Impact: every Cardano builder who wants an agent to pay on verifiable state can fork this instead of re-deriving it. Business: ConditionalPay proves the first customer-facing use case on top of the same package."
+
+If the clock is tight, cut the Impact sentence first.
+
+### 3:15 to 4:00, close and call to fork (repo slide)
+
+"`charli3-settlement` is MIT. ConditionalPay is the proof. Fork the library, swap the callback, and ship your own oracle-gated agent on Preprod the same day. Thank you Charli3."
+
+Hold on the repo URL and install line until 4:00, then stop.
+
+## Hard visual proof checklist
+
+The demo is not valid unless all of these are visible on camera:
+
+- A real import of `charli3_settlement` in code.
+- A second runnable app using the same package.
+- A real Preprod escrow commit tx hash.
+- A real ODV tx hash.
+- A real release tx hash.
+- A beneficiary balance change.
+- The library name and MIT license.
+
+If any item is missing during the Sunday run, use the backup video.
+
+## Cut rules if time slips
+
+1. First cut: shorten the builder-pain intro by one sentence.
+2. Second cut: remove "Change this callback and you have a new product."
+3. Third cut: compress the judging-criteria block to two sentences.
+4. Never cut the import frame, the ODV tx, or the beneficiary balance change.
+
+## Dependencies to verify Saturday
+
+- `packages/charli3-settlement/python/README.md` and examples finalized for the exact API shown above.
+- `charli3_settlement_examples.price_alert` runs on the presenter laptop.
+- ConditionalPay UI exposes the four state-machine labels cleanly.
+- OracleEngineer scripted push lands within 15 seconds on a warm run.
+- Backup video tab pre-positioned.
+
+## Related files
+
+- [`docs/STORYBOARD.md`](./STORYBOARD.md)
+- [`docs/SHOT_LIST.md`](./SHOT_LIST.md)
+- [`docs/BACKUP_VIDEO.md`](./BACKUP_VIDEO.md)

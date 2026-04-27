@@ -5,17 +5,17 @@
  * schema in `contracts/validators/escrow.ak` so the deposit form can show
  * the exact CBOR payload it would attach to the lock UTxO.
  *
- * Plutus Data shape (per the Aiken `EscrowDatum`):
+ * Plutus Data shape (per the Aiken `EscrowDatum` at tag cha-22-day2):
  *   Constr 0 [
  *     ByteString beneficiary,         // 28-byte payment key hash
  *     ByteString sender,              // 28-byte payment key hash
- *     Int        trigger_price,       // oracle native scaling
+ *     Int        trigger_price,       // oracle native scaling (1e6 for ADA/USD)
  *     Constr {0|1} direction,         // 0 = Above, 1 = Below
  *     Int        expiry_posix,        // POSIX milliseconds
- *     Int        max_staleness_ms,
- *     ByteString oracle_policy_id,    // 28 bytes
- *     ByteString oracle_asset_name,   // arbitrary
+ *     Int        max_staleness_ms,    // must be >= 300_000
  *   ]
+ * The oracle policy / asset identity is baked into the validator as a
+ * compile-time parameter, not carried on the datum.
  *
  * CBOR encoding for Plutus Data follows the Plutus spec:
  *   Constr n with fields: tag 121+n (n<7), 1280+n-7 (7<=n<128), or
