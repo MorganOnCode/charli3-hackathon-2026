@@ -59,7 +59,7 @@ from charli3_odv_client.core.aggregation import build_aggregate_message
 from charli3_odv_client.core.client import ODVClient
 from charli3_odv_client.models.base import TxValidityInterval
 from charli3_odv_client.models.datums import AggState
-from charli3_odv_client.models.requests import OdvFeedRequest
+from charli3_odv_client.models.requests import OdvFeedRequest, OdvTxSignatureRequest
 
 LOG = logging.getLogger(__name__)
 
@@ -237,18 +237,42 @@ async def submit_odv_tx(
             change_address=change_address,
             validity_window=validity_window,
         )
-        status, submitted_tx = await tx_manager.sign_and_submit(
+        # Pull tx signatures from each oracle node so the final witness set
+        # satisfies the multisig required_signers on the AggState output. The
+        # SDK's CLI aggregate command does this same two-step: build then sign.
+        tx_request = OdvTxSignatureRequest(
+            node_messages=node_messages,
+            tx_body_cbor=odv_result.transaction.transaction_body.to_cbor_hex(),
+        )
+        node_signatures = await client.collect_tx_signatures(
+            nodes=settings.client.nodes, tx_request=tx_request
+        )
+        if not node_signatures:
+            raise RuntimeError("No oracle node returned a tx signature.")
+        odv_result.transaction = client.attach_signature_witnesses(
+            original_tx=odv_result.transaction,
+            signatures=node_signatures,
+            node_messages=node_messages,
+        )
+        LOG.info(
+            "attached %d node tx signatures policy_id=%s",
+            len(node_signatures),
+            settings.client.policy_id,
+        )
+        status, _submitted = await tx_manager.sign_and_submit(
             odv_result.transaction,
             signing_keys=[signing_key],
             wait_confirmation=wait_confirmation,
         )
         if status not in ("submitted", "confirmed"):
             raise RuntimeError(f"ODV submission returned status={status!r}")
-        # The AggState output is always the second script_output in the SDK's
-        # build_odv_tx (account_output, agg_state_output). Match that ordering
-        # so the oracle_utxo_ref lines up with what reference-input consumers
-        # will fetch next.
-        tx_hash = str(submitted_tx.id)
+        # The SDK's Ogmios path returns a UTxO list from the confirmation
+        # query rather than the original Transaction, so we read the tx hash
+        # off the signed transaction we just submitted. The AggState output
+        # is always the second script_output in the SDK's build_odv_tx
+        # (account_output, agg_state_output), so reference_index=1 lines up
+        # with what reference-input consumers will fetch next.
+        tx_hash = str(odv_result.transaction.id)
         agg_state_index = 1
         LOG.info(
             "ODV submitted tx=%s status=%s median=%s ts=%s",
@@ -335,14 +359,15 @@ async def build_and_submit_release(
             validity_start=validity_start_slot,
             validity_end=validity_end_slot,
         )
-        status, submitted_tx = await tx_manager.sign_and_submit(
+        status, _submitted = await tx_manager.sign_and_submit(
             tx,
             signing_keys=[beneficiary_signing_key],
             wait_confirmation=wait_confirmation,
         )
         if status not in ("submitted", "confirmed"):
             raise RuntimeError(f"Release submission returned status={status!r}")
-        release_tx_hash = str(submitted_tx.id)
+        # Read the hash off the signed tx (see submit_odv_tx for rationale).
+        release_tx_hash = str(tx.id)
         LOG.info(
             "release submitted tx=%s status=%s ref_oracle=%s",
             release_tx_hash,
