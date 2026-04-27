@@ -68,7 +68,7 @@ export function DepositForm({ disabled, hasActiveSettlement, onCreate }: Props) 
       </header>
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onSubmit}>
-        <Field label="Beneficiary address" hint={addressError ?? 'Preprod bech32 (addr_test1...)'} error={Boolean(addressError)}>
+        <Field label="Counterparty address" hint={addressError ?? 'Preprod bech32 (addr_test1...)'} error={Boolean(addressError)}>
           <input
             value={draft.beneficiary}
             onChange={(e) => update('beneficiary', e.target.value)}

@@ -6,6 +6,7 @@
  * recognises the transition on a 30-second glance at 1080p. Action buttons
  * drive the clickthrough that the demo video will be recorded from.
  */
+import { useEffect, useState } from 'react'
 import { truncateAddress, truncateHash } from '../lib/address'
 import { txUrl } from '../lib/explorer'
 import { directionLabel } from '../state/settlement'
@@ -19,7 +20,10 @@ interface Props {
   onReset: () => void
   /** Last error from POST /api/oracle/odv/submit, surfaced under the action row. */
   odvError?: string | null
-  /** True while an ODV submit is in flight (~1.5s end-to-end on the live wrapper). */
+  /** True while an ODV submit is in flight. OracleEngineer reports 11-30s
+   *  typical, 52s worst-case cold, on the live Preprod wrapper. The button
+   *  renders a spinner + elapsed seconds so judges never wonder whether the
+   *  app froze. */
   odvPending?: boolean
 }
 
@@ -54,7 +58,7 @@ export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, o
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Detail label="Amount locked" value={`${settlement.amountAda} tADA`} mono />
-        <Detail label="Beneficiary" value={truncateAddress(settlement.beneficiary)} mono small />
+        <Detail label="Counterparty" value={truncateAddress(settlement.beneficiary)} mono small />
         <Detail label="Condition" value={directionLabel(settlement.direction, settlement.triggerPrice)} />
         <Detail label="Expires" value={new Date(settlement.expiresAt).toLocaleString()} />
       </div>
@@ -70,30 +74,18 @@ export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, o
       )}
 
       {odvError && settlement.status === 'armed' && (
-        <p className="text-xs font-mono text-bad bg-bad/10 border border-bad/40 rounded px-3 py-2">
-          ODV submit failed: {odvError}
-        </p>
+        <OdvErrorBanner message={odvError} />
       )}
 
       <footer className="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-edge">
         <ConditionReadout settlement={settlement} currentPrice={currentPrice} crossed={crossed} />
-        <div className="flex gap-2">
+        <div className="flex flex-col items-end gap-1">
           {settlement.status === 'armed' && (
-            <button
+            <OdvSubmitButton
+              pending={!!odvPending}
+              crossed={crossed}
               onClick={onArmOracle}
-              disabled={odvPending}
-              className={
-                'px-3 py-2 rounded text-sm font-medium border transition ' +
-                (odvPending
-                  ? 'border-edge text-muted cursor-wait'
-                  : crossed
-                  ? 'border-accent text-accent hover:bg-accent/10 animate-pulse'
-                  : 'border-edge text-muted hover:text-slate-200')
-              }
-              title="Send the ODV request to Charli3 to pull a fresh oracle tick"
-            >
-              {odvPending ? 'Submitting ODV...' : 'Request ODV tick'}
-            </button>
+            />
           )}
           {settlement.status === 'settling' && (
             <button
@@ -115,6 +107,120 @@ export function EscrowCard({ settlement, currentPrice, onArmOracle, onRelease, o
         </div>
       </footer>
     </section>
+  )
+}
+
+function OdvErrorBanner({ message }: { message: string }) {
+  // The wrapper can return very long error strings (Ogmios evaluateTransaction
+  // can bake a 400+ char JSON blob into one field). Show a short, readable
+  // headline inline, surface the full text via hover title + expandable detail.
+  const [expanded, setExpanded] = useState(false)
+  const headline = deriveHeadline(message)
+  return (
+    <div className="text-xs font-mono text-bad bg-bad/10 border border-bad/40 rounded px-3 py-2 flex flex-col gap-1">
+      <div className="flex items-start justify-between gap-3">
+        <span title={message} className="break-words">
+          ODV submit failed: {headline}
+        </span>
+        <button
+          onClick={() => setExpanded((x) => !x)}
+          className="shrink-0 text-[11px] text-bad/80 hover:text-bad underline decoration-dotted"
+        >
+          {expanded ? 'hide' : 'details'}
+        </button>
+      </div>
+      {expanded && (
+        <pre className="mt-1 whitespace-pre-wrap break-all text-[11px] leading-snug text-bad/90">
+{message}
+        </pre>
+      )}
+    </div>
+  )
+}
+
+function deriveHeadline(message: string): string {
+  // Common wrapper shapes: "Failed to build ODV transaction: Failed to build
+  // script transaction: Failed to build transaction: Ogmios responded with error: ..."
+  // Pluck the first readable segment and cap length so the banner stays one line
+  // on typical widths.
+  const first = message.split(':').map((s) => s.trim()).find((s) => s.length > 0) ?? message
+  const capped = first.length > 120 ? first.slice(0, 117) + '...' : first
+  return capped
+}
+
+function OdvSubmitButton({
+  pending,
+  crossed,
+  onClick,
+}: {
+  pending: boolean
+  crossed: boolean
+  onClick: () => void
+}) {
+  // Elapsed seconds since pending flipped true. Reset on release. Judges watch
+  // a number tick up instead of wondering whether the app froze. OracleEngineer
+  // reports 11-30s typical, 52s worst cold.
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!pending) {
+      setElapsed(0)
+      return
+    }
+    const started = Date.now()
+    setElapsed(0)
+    const id = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - started) / 1000))
+    }, 500)
+    return () => window.clearInterval(id)
+  }, [pending])
+
+  return (
+    <>
+      <button
+        onClick={onClick}
+        disabled={pending}
+        className={
+          'px-3 py-2 rounded text-sm font-medium border transition inline-flex items-center gap-2 ' +
+          (pending
+            ? 'border-edge text-muted cursor-wait'
+            : crossed
+            ? 'border-accent text-accent hover:bg-accent/10 animate-pulse'
+            : 'border-edge text-muted hover:text-slate-200')
+        }
+        title="Send the ODV request to Charli3 to pull a fresh oracle tick"
+      >
+        {pending && <Spinner />}
+        <span>
+          {pending
+            ? `Submitting ODV... ${elapsed}s`
+            : 'Request ODV tick'}
+        </span>
+      </button>
+      {pending && (
+        <span className="text-[11px] font-mono text-muted">
+          on-chain confirmation, typical 10 to 30 s
+        </span>
+      )}
+    </>
+  )
+}
+
+function Spinner() {
+  return (
+    <svg
+      className="animate-spin h-3.5 w-3.5"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="4" />
+      <path
+        d="M22 12a10 10 0 0 1-10 10"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+    </svg>
   )
 }
 
@@ -273,8 +379,9 @@ function DatumPreview({ cborHex, fields }: { cborHex: string; fields: Record<str
         </button>
       </div>
       <p className="mt-2 text-[11px] text-muted">
-        Encoded against `escrow.escrow.spend` schema in `contracts/validators/escrow.ak`. Saturday this
-        attaches to the lock UTxO via the CIP-30 tx builder.
+        Encoded against the 6-field `escrow.escrow.spend` schema (cha-22-day2). Oracle identity is a
+        compile-time parameter of the validator, not a datum field. Saturday this attaches to the lock
+        UTxO via the CIP-30 tx builder.
       </p>
     </details>
   )
